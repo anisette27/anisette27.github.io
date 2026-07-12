@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>景德镇制瓷 - 沉浸式体验</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');
+body{overflow:hidden;background:#1a1008;font-family:'Noto Serif SC',serif;user-select:none;}
+canvas{display:block;}
+/* 开场昵称 */
+#nickname-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+background:linear-gradient(180deg,#0d0a05 0%,#2a1a0a 50%,#3d2510 100%);transition:opacity 1s;}
+#nickname-overlay.hidden{opacity:0;pointer-events:none;}
+.nick-box{background:linear-gradient(135deg,#3d2b1a,#5a3d20);border:3px solid #8b6914;border-radius:16px;padding:48px 56px;text-align:center;
+box-shadow:0 0 60px rgba(139,105,20,0.3),inset 0 0 30px rgba(0,0,0,0.5);max-width:480px;position:relative;}
+.nick-box::before{content:'';position:absolute;inset:-1px;border-radius:18px;
+background:linear-gradient(45deg,transparent 30%,rgba(200,160,60,0.2) 50%,transparent 70%);z-index:-1;}
+.nick-box h1{color:#d4a843;font-size:36px;font-weight:900;letter-spacing:8px;margin-bottom:8px;
+text-shadow:0 2px 8px rgba(0,0,0,0.5);}
+.nick-box .subtitle{color:#a08040;font-size:14px;letter-spacing:4px;margin-bottom:32px;}
+.nick-box input{width:100%;padding:14px 20px;background:rgba(0,0,0,0.4);border:2px solid #6b4f1d;border-radius:8px;
+color:#e8d5b0;font-size:20px;font-family:'Noto Serif SC',serif;text-align:center;outline:none;transition:border-color 0.3s;}
+.nick-box input:focus{border-color:#d4a843;}
+.nick-box input::placeholder{color:#6b5a3a;}
+.nick-btn{margin-top:24px;padding:14px 48px;background:linear-gradient(135deg,#8b6914,#a07d1a);border:2px solid #c49a22;
+border-radius:8px;color:#fff;font-size:18px;font-family:'Noto Serif SC',serif;cursor:pointer;letter-spacing:4px;
+transition:all 0.3s;text-shadow:0 1px 3px rgba(0,0,0,0.5);}
+.nick-btn:hover{background:linear-gradient(135deg,#a07d1a,#b8912a);transform:translateY(-2px);box-shadow:0 4px 12px rgba(139,105,20,0.4);}
+/* 关卡标题卡 */
+#level-card{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;flex-direction:column;
+background:rgba(10,6,2,0.95);opacity:0;pointer-events:none;transition:opacity 0.8s;}
+#level-card.show{opacity:1;pointer-events:auto;}
+#level-card .lv-num{color:#8b6914;font-size:18px;letter-spacing:6px;margin-bottom:12px;}
+#level-card .lv-title{color:#d4a843;font-size:48px;font-weight:900;letter-spacing:12px;margin-bottom:8px;
+text-shadow:0 0 30px rgba(200,160,60,0.3);}
+#level-card .lv-desc{color:#a08040;font-size:16px;letter-spacing:2px;max-width:500px;line-height:1.8;}
+/* 对话气泡 */
+#dialogue{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:800;
+background:linear-gradient(135deg,rgba(60,45,25,0.95),rgba(80,60,30,0.95));border:2px solid #8b6914;
+border-radius:16px;padding:20px 32px;max-width:520px;text-align:center;opacity:0;pointer-events:none;
+transition:opacity 0.5s;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+#dialogue.show{opacity:1;pointer-events:auto;}
+#dialogue .speaker{color:#d4a843;font-size:14px;letter-spacing:3px;margin-bottom:8px;}
+#dialogue .text{color:#e8d5b0;font-size:16px;line-height:1.8;letter-spacing:1px;}
+/* 操作按钮 */
+#action-bar{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);z-index:700;display:flex;gap:12px;
+opacity:0;pointer-events:none;transition:opacity 0.5s;}
+#action-bar.show{opacity:1;pointer-events:auto;}
+.act-btn{padding:10px 28px;background:linear-gradient(135deg,#5a3d20,#7a5530);border:2px solid #8b6914;
+border-radius:8px;color:#e8d5b0;font-size:15px;font-family:'Noto Serif SC',serif;cursor:pointer;
+letter-spacing:2px;transition:all 0.3s;white-space:nowrap;}
+.act-btn:hover{background:linear-gradient(135deg,#7a5530,#9a6d40);transform:translateY(-2px);box-shadow:0 4px 12px rgba(139,105,20,0.3);}
+.act-btn.primary{background:linear-gradient(135deg,#8b6914,#a07d1a);color:#fff;}
+/* 进度条 */
+#progress-bar{position:fixed;top:0;left:0;width:100%;height:4px;z-index:700;background:rgba(0,0,0,0.3);}
+#progress-fill{height:100%;width:0;background:linear-gradient(90deg,#8b6914,#d4a843);transition:width 0.5s;border-radius:0 2px 2px 0;}
+/* 关卡导航 */
+#level-nav{position:fixed;top:20px;right:20px;z-index:700;display:flex;gap:6px;opacity:0;transition:opacity 0.5s;}
+#level-nav.show{opacity:1;}
+.nav-dot{width:12px;height:12px;border-radius:50%;border:2px solid #6b4f1d;background:transparent;transition:all 0.3s;}
+.nav-dot.active{background:#d4a843;border-color:#d4a843;box-shadow:0 0 8px rgba(212,168,67,0.5);}
+.nav-dot.done{background:#8b6914;border-color:#8b6914;}
+/* 信息面板 */
+#info-panel{position:fixed;top:60px;right:20px;z-index:700;background:rgba(40,28,14,0.9);border:1px solid #6b4f1d;
+border-radius:10px;padding:16px 20px;min-width:180px;opacity:0;pointer-events:none;transition:opacity 0.5s;}
+#info-panel.show{opacity:1;pointer-events:auto;}
+#info-panel .info-title{color:#d4a843;font-size:13px;letter-spacing:2px;margin-bottom:8px;}
+#info-panel .info-row{color:#e8d5b0;font-size:13px;margin:4px 0;display:flex;justify-content:space-between;}
+/* 品质结果 */
+#result-overlay{position:fixed;inset:0;z-index:950;display:flex;align-items:center;justify-content:center;flex-direction:column;
+background:rgba(10,6,2,0.95);opacity:0;pointer-events:none;transition:opacity 1s;}
+#result-overlay.show{opacity:1;pointer-events:auto;}
+#result-overlay .grade{font-size:72px;font-weight:900;margin-bottom:16px;text-shadow:0 0 40px currentColor;}
+#result-overlay .grade-name{font-size:24px;letter-spacing:6px;margin-bottom:8px;}
+#result-overlay .grade-desc{font-size:16px;color:#a08040;letter-spacing:2px;max-width:400px;text-align:center;line-height:1.8;}
+/* 完成按钮 */
+.complete-btn{position:fixed;bottom:80px;right:30px;z-index:700;padding:12px 32px;
+background:linear-gradient(135deg,#8b6914,#c49a22);border:2px solid #d4a843;border-radius:8px;
+color:#fff;font-size:16px;font-family:'Noto Serif SC',serif;cursor:pointer;letter-spacing:3px;
+transition:all 0.3s;opacity:0;pointer-events:none;}
+.complete-btn.show{opacity:1;pointer-events:auto;}
+.complete-btn:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(212,168,67,0.4);}
+/* 提示文字 */
+#hint-text{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:700;
+color:#a08040;font-size:14px;letter-spacing:2px;opacity:0;transition:opacity 0.5s;text-align:center;}
+#hint-text.show{opacity:1;}
+/* 场景淡入淡出 */
+#scene-fade{position:fixed;inset:0;z-index:850;background:#0d0a05;opacity:0;pointer-events:none;transition:opacity 0.8s;}
+#scene-fade.active{opacity:1;}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="progress-bar"><div id="progress-fill"></div></div>
+<div id="level-nav"></div>
+<div id="level-card"><div class="lv-num"></div><div class="lv-title"></div><div class="lv-desc"></div></div>
+<div id="dialogue"><div class="speaker">老师傅</div><div class="text"></div></div>
+<div id="action-bar"></div>
+<div id="info-panel"><div class="info-title">状态</div><div id="info-content"></div></div>
+<div id="hint-text"></div>
+<div class="complete-btn" id="completeBtn">完成</div>
+<div id="scene-fade"></div>
+<div id="nickname-overlay"><div class="nick-box"><h1>景德镇制瓷</h1><div class="subtitle">千年窑火 · 匠心传承</div><input type="text" id="nickInput" placeholder="请输入你的名字" maxlength="8"><br><button class="nick-btn" onclick="startGame()">开始学艺</button></div></div>
+<div id="result-overlay"><div class="grade"></div><div class="grade-name"></div><div class="grade-desc"></div></div>
+
+<script>
+// ==================== 基础系统 ====================
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+resize();
+window.addEventListener('resize',resize);
+
+// 游戏状态
+const G={
+    nick:'',level:1,maxLevel:8,score:0,
+    quality:{clay:0,refine:0,throw:0,trim:0,paint:0,glaze:0,kiln:0},
+    mouseX:0,mouseY:0,mouseDown:false,dragging:false,
+    wheelAngle:0,time:0,dt:0,lastTime:0,
+    selectedClay:null,refineProgress:0,refineTimer:0,
+    potProfile:[],throwPhase:0,throwHeight:0,throwWidth:0,
+    trimProgress:0,paintStrokes:[],glazeProgress:0,glazeDip:0,
+    kilnPlaced:false,opened:false,fireParticles:[],
+    dustParticles:[],steamParticles:[],waterDrops:[],
+    sparkParticles:[],chipParticles:[],
+    masterSayTimer:0,masterDialogueIndex:0,
+    transitioning:false,levelStartTime:0,
+    // 音效
+    audioCtx:null,
+    // 场景特有
+    observeMode:false,observeText:'',
+    kneadCount:0,kneadGood:0,lastKneadTime:0,
+    potControlY:0.5,deformWarning:0,
+    trimX:0,trimDone:false,
+    brushDown:false,brushPoints:[],
+    glazeY:0,glazeSpeed:0,glazeDipping:false,glazeEvenness:0.5,
+    kilnDrag:false,kilnDragX:0,kilnDragY:0,kilnTargetX:0,kilnTargetY:0,
+};
+
+// 老师傅对话
+const dialogues=[
+    ["孩子，选泥是制瓷的第一步。这四种泥料，你仔细看看，哪种最适合做瓷器？"],
+    ["练泥要耐心，把空气都挤出去，泥才会细腻均匀。跟着节奏来，别急..."],
+    ["拉坯是门手艺活，感受泥的力道。上拉让它长高，下压收口。保持匀速，心要静..."],
+    ["修坯要心静手稳，一刀下去，不能犹豫。把多余的泥削去，留下精致的轮廓..."],
+    ["青花，是景德镇的灵魂。蘸满颜料，在素坯上自由挥洒。记住，现在画的是灰黑色，烧制后才变成那美丽的钴蓝。"],
+    ["施釉要一气呵成。慢慢放入釉缸，再匀速提起。速度太快，釉层不均；太慢，釉会太厚。"],
+    ["入窑一色，出窑万彩。把瓷器小心放入匣钵，这是最后的等待..."],
+    ["开窑了！看看你的作品吧...千年窑火，都在这一刻绽放。"]
+];
+
+// 关卡标题
+const levelInfo=[
+    {num:'第一关',title:'选泥',desc:'制瓷始于选泥。高岭土，洁白细腻，是制瓷的上品。'},
+    {num:'第二关',title:'练泥',desc:'揉练瓷泥，排出气泡，使泥料均匀细腻。'},
+    {num:'第三关',title:'拉坯',desc:'旋转的辘轳上，双手塑形，泥土化为器物。'},
+    {num:'第四关',title:'修坯',desc:'修坯刀下，器物轮廓日渐精致。'},
+    {num:'第五关',title:'青花',desc:'毛笔蘸墨，在素白瓷坯上绘制青花。'},
+    {num:'第六关',title:'施釉',desc:'浸入釉缸，为瓷器披上光润的外衣。'},
+    {num:'第七关',title:'装窑',desc:'将瓷器放入匣钵，送入窑中。'},
+    {num:'第八关',title:'开窑',desc:'窑火熄灭，开窑揭晓最后的成果。'}
+];
+
+// ==================== 音效系统 ====================
+function initAudio(){
+    if(!G.audioCtx)G.audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+}
+function playSound(type){
+    if(!G.audioCtx)return;
+    const ac=G.audioCtx;
+    const now=ac.currentTime;
+    switch(type){
+        case 'knead':{
+            const n=ac.createBufferSource();
+            const buf=ac.createBuffer(1,ac.sampleRate*0.15,ac.sampleRate);
+            const d=buf.getChannelData(0);
+            for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/d.length*5)*0.3;
+            n.buffer=buf;
+            const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=200;
+            n.connect(f);f.connect(ac.destination);n.start();break;
+        }
+        case 'wheel':{
+            const o=ac.createOscillator();o.type='sine';o.frequency.value=60;
+            const g=ac.createGain();g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(0.05,now+0.5);g.gain.linearRampToValueAtTime(0,now+1);
+            o.connect(g);g.connect(ac.destination);o.start(now);o.stop(now+1);break;
+        }
+        case 'brush':{
+            const n=ac.createBufferSource();
+            const buf=ac.createBuffer(1,ac.sampleRate*0.08,ac.sampleRate);
+            const d=buf.getChannelData(0);
+            for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.15*Math.exp(-i/d.length*3);
+            n.buffer=buf;
+            const f=ac.createBiquadFilter();f.type='bandpass';f.frequency.value=800;f.Q.value=2;
+            n.connect(f);f.connect(ac.destination);n.start();break;
+        }
+        case 'fire':{
+            const n=ac.createBufferSource();
+            const buf=ac.createBuffer(1,ac.sampleRate*0.5,ac.sampleRate);
+            const d=buf.getChannelData(0);
+            for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.2*(1+Math.sin(i*0.01)*0.3);
+            n.buffer=buf;
+            const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=300;
+            n.connect(f);f.connect(ac.destination);n.start();break;
+        }
+        case 'reveal':{
+            [523,659,784,1047].forEach((freq,i)=>{
+                const o=ac.createOscillator();o.type='sine';o.frequency.value=freq;
+                const g=ac.createGain();g.gain.setValueAtTime(0,now+i*0.3);g.gain.linearRampToValueAtTime(0.1,now+i*0.3+0.05);g.gain.linearRampToValueAtTime(0,now+i*0.3+0.8);
+                o.connect(g);g.connect(ac.destination);o.start(now+i*0.3);o.stop(now+i*0.3+0.8);
+            });break;
+        }
+        case 'click':{
+            const o=ac.createOscillator();o.type='sine';o.frequency.value=800;
+            const g=ac.createGain();g.gain.setValueAtTime(0.1,now);g.gain.linearRampToValueAtTime(0,now+0.05);
+            o.connect(g);g.connect(ac.destination);o.start(now);o.stop(now+0.05);break;
+        }
+        case 'splash':{
+            const n=ac.createBufferSource();
+            const buf=ac.createBuffer(1,ac.sampleRate*0.3,ac.sampleRate);
+            const d=buf.getChannelData(0);
+            for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.2*Math.exp(-i/d.length*4);
+            n.buffer=buf;
+            const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=400;
+            n.connect(f);f.connect(ac.destination);n.start();break;
+        }
+        case 'chip':{
+            const n=ac.createBufferSource();
+            const buf=ac.createBuffer(1,ac.sampleRate*0.05,ac.sampleRate);
+            const d=buf.getChannelData(0);
+            for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.3*Math.exp(-i/d.length*8);
+            n.buffer=buf;const f=ac.createBiquadFilter();f.type='highpass';f.frequency.value=2000;
+            n.connect(f);f.connect(ac.destination);n.start();break;
+        }
+    }
+}
+
+// ==================== 粒子系统 ====================
+function spawnDust(x,y,n=5){for(let i=0;i<n;i++)G.dustParticles.push({x,y,vx:(Math.random()-0.5)*1.5,vy:-Math.random()*1-0.5,life:1,size:Math.random()*3+1});}
+function spawnSteam(x,y,n=8){for(let i=0;i<n;i++)G.steamParticles.push({x,y,vx:(Math.random()-0.5)*2,vy:-Math.random()*2-1,life:1,size:Math.random()*8+4});}
+function spawnWater(x,y,n=3){for(let i=0;i<n;i++)G.waterDrops.push({x,y,vx:(Math.random()-0.5)*3,vy:Math.random()*2-1,life:1,size:Math.random()*2+1});}
+function spawnSpark(x,y,n=5){for(let i=0;i<n;i++)G.sparkParticles.push({x:x+Math.random()*40-20,y:y+Math.random()*20-10,vx:(Math.random()-0.5)*4,vy:-Math.random()*4-1,life:1,size:Math.random()*3+1,color:`hsl(${30+Math.random()*30},100%,${50+Math.random()*30}%)`});}
+function spawnChip(x,y,n=3){for(let i=0;i<n;i++)G.chipParticles.push({x,y,vx:(Math.random()-0.5)*4,vy:-Math.random()*3,life:1,size:Math.random()*3+1,rot:Math.random()*Math.PI*2});}
+function updateParticles(arr,dt){
+    for(let i=arr.length-1;i>=0;i--){
+        const p=arr[i];
+        p.x+=p.vx;p.y+=p.vy;p.life-=dt*(p.size>3?0.8:1.5);
+        if(p.life<=0)arr.splice(i,1);
+    }
+}
+
+// ==================== UI辅助 ====================
+function showLevelCard(lv){
+    const card=document.getElementById('level-card');
+    card.querySelector('.lv-num').textContent=levelInfo[lv-1].num;
+    card.querySelector('.lv-title').textContent=levelInfo[lv-1].title;
+    card.querySelector('.lv-desc').textContent=levelInfo[lv-1].desc;
+    card.classList.add('show');
+    setTimeout(()=>card.classList.remove('show'),3000);
+}
+function showDialogue(text,duration=4000){
+    const d=document.getElementById('dialogue');
+    d.querySelector('.text').textContent=text;
+    d.classList.add('show');
+    G.masterSayTimer=setTimeout(()=>d.classList.remove('show'),duration);
+}
+function hideDialogue(){document.getElementById('dialogue').classList.remove('show');clearTimeout(G.masterSayTimer);}
+function setActions(btns){
+    const bar=document.getElementById('action-bar');
+    bar.innerHTML='';
+    btns.forEach(b=>{
+        const el=document.createElement('button');
+        el.className='act-btn'+(b.primary?' primary':'');
+        el.textContent=b.text;
+        el.onclick=b.fn;
+        bar.appendChild(el);
+    });
+    bar.classList.add('show');
+}
+function hideActions(){document.getElementById('action-bar').classList.remove('show');}
+function showComplete(){document.getElementById('completeBtn').classList.add('show');}
+function hideComplete(){document.getElementById('completeBtn').classList.remove('show');}
+function showInfo(html){
+    document.getElementById('info-content').innerHTML=html;
+    document.getElementById('info-panel').classList.add('show');
+}
+function hideInfo(){document.getElementById('info-panel').classList.remove('show');}
+function setHint(t){document.getElementById('hint-text').textContent=t;document.getElementById('hint-text').classList.add('show');}
+function hideHint(){document.getElementById('hint-text').classList.remove('show');}
+function updateNav(){
+    const nav=document.getElementById('level-nav');
+    nav.innerHTML='';
+    for(let i=1;i<=8;i++){
+        const d=document.createElement('div');d.className='nav-dot';
+        if(i===G.level)d.classList.add('active');
+        else if(i<G.level)d.classList.add('done');
+        nav.appendChild(d);
+    }
+    nav.classList.add('show');
+}
+function setProgress(p){document.getElementById('progress-fill').style.width=(p*100)+'%';}
+
+// ==================== 场景过渡 ====================
+function transitionTo(lv){
+    if(G.transitioning)return;
+    G.transitioning=true;
+    const fade=document.getElementById('scene-fade');
+    fade.classList.add('active');
+    hideActions();hideInfo();hideDialogue();hideComplete();
+    setTimeout(()=>{
+        G.level=lv;
+        G.levelStartTime=Date.now();
+        initLevel(lv);
+        updateNav();
+        fade.classList.remove('active');
+        showLevelCard(lv);
+        setTimeout(()=>showDialogue(dialogues[lv-1][0],5000),1500);
+        G.transitioning=false;
+    },900);
+}
+
+// ==================== 关卡初始化 ====================
+function initLevel(lv){
+    G.dustParticles=[];G.steamParticles=[];G.waterDrops=[];G.sparkParticles=[];G.chipParticles=[];
+    G.observeMode=false;G.observeText='';
+    switch(lv){
+        case 1:initLevel1();break;
+        case 2:initLevel2();break;
+        case 3:initLevel3();break;
+        case 4:initLevel4();break;
+        case 5:initLevel5();break;
+        case 6:initLevel6();break;
+        case 7:initLevel7();break;
+        case 8:initLevel8();break;
+    }
+}
+
+// ==================== 第一关：选泥 ====================
+const clays=[
+    {name:'高岭土',color:'#e8e0d4',desc:'洁白细腻，质地纯净，含铝量高，是制瓷的上品泥料。烧制后呈纯白色，透光性好。',quality:95,x:0},
+    {name:'瓷石泥',color:'#9a9088',desc:'灰白色，质地较硬，含石英较多。可单独制瓷，但效果不如高岭土。',quality:60,x:0},
+    {name:'陶泥',color:'#c4a45a',desc:'黄褐色，含铁量较高，适合做陶器，烧制后呈暗红色，不适合制瓷。',quality:30,x:0},
+    {name:'劣质泥',color:'#7a6b5a',desc:'粗糙不纯，含杂质多，颗粒感强。无法用来制作精品瓷器。',quality:10,x:0}
+];
+let selectedClayIdx=-1;
+function initLevel1(){
+    selectedClayIdx=-1;G.selectedClay=null;
+    const positions=[W*0.2,W*0.4,W*0.6,W*0.8];
+    clays.forEach((c,i)=>c.x=positions[i]);
+    setHint('点击泥盆观察和选择');
+    setProgress(0);
+}
+function drawLevel1(){
+    // 背景 - 工坊
+    drawWorkshopBg();
+    // 工作台
+    ctx.fillStyle='#5a3d20';
+    ctx.fillRect(W*0.08,H*0.55,W*0.84,H*0.12);
+    drawWoodGrain(W*0.08,H*0.55,W*0.84,H*0.12);
+    // 桌腿
+    ctx.fillStyle='#4a3018';
+    ctx.fillRect(W*0.12,H*0.67,12,H*0.3);ctx.fillRect(W*0.85,H*0.67,12,H*0.3);
+    // 老师傅
+    drawMaster(W*0.5,H*0.3);
+    // 泥盆
+    clays.forEach((c,i)=>{
+        const cx=c.x,cy=H*0.5;
+        // 盆
+        ctx.save();
+        ctx.beginPath();ctx.ellipse(cx,cy+10,55,18,0,0,Math.PI*2);
+        const pg=ctx.createLinearGradient(cx-55,cy,cx+55,cy);
+        pg.addColorStop(0,'#6b4f2d');pg.addColorStop(0.5,'#8b6930');pg.addColorStop(1,'#5a3d1d');
+        ctx.fillStyle=pg;ctx.fill();
+        ctx.strokeStyle='#4a3018';ctx.lineWidth=2;ctx.stroke();
+        // 泥料
+        ctx.beginPath();ctx.ellipse(cx,cy,45,14,0,0,Math.PI*2);
+        const cg=ctx.createRadialGradient(cx-10,cy-5,5,cx,cy,45);
+        cg.addColorStop(0,lightenColor(c.color,30));cg.addColorStop(1,c.color);
+        ctx.fillStyle=cg;ctx.fill();
+        // 选中高亮
+        if(i===selectedClayIdx){
+            ctx.beginPath();ctx.ellipse(cx,cy,55,20,0,0,Math.PI*2);
+            ctx.strokeStyle='#d4a843';ctx.lineWidth=3;ctx.setLineDash([5,5]);
+            ctx.lineDashOffset=-G.time*30;ctx.stroke();ctx.setLineDash([]);
+        }
+        // 标签
+        ctx.fillStyle='#e8d5b0';ctx.font='14px "Noto Serif SC"';ctx.textAlign='center';
+        ctx.fillText(c.name,cx,cy+35);
+        ctx.restore();
+    });
+    // 观察模式弹窗
+    if(G.observeMode){
+        drawObservePanel(G.observeText);
+    }
+    // 灰尘粒子
+    if(Math.random()<0.02)spawnDust(W*0.3+Math.random()*W*0.4,H*0.3+Math.random()*H*0.3,1);
+}
+function handleLevel1Click(mx,my){
+    if(G.observeMode){G.observeMode=false;hideActions();setHint('点击泥盆观察和选择');return;}
+    clays.forEach((c,i)=>{
+        const cx=c.x,cy=H*0.5;
+        if(Math.abs(mx-cx)<55&&Math.abs(my-cy)<25){
+            selectedClayIdx=i;
+            playSound('click');
+            setActions([
+                {text:'观察',fn:()=>{G.observeMode=true;G.observeText=c.desc;hideActions();setHint('点击任意处关闭');}},
+                {text:'揉捏',fn:()=>{showDialogue('你揉了揉'+c.name+'，感觉'+(c.quality>70?'细腻光滑':'粗糙不均')+'。');}},
+                {text:'折断',fn:()=>{showDialogue(c.name+'的断面'+(c.quality>70?'光滑细腻，可见均匀的颗粒。':'粗糙不均，含有很多杂质。'));}},
+                {text:'选择此泥',primary:true,fn:()=>{
+                    G.selectedClay=c;G.quality.clay=c.quality;
+                    hideActions();showComplete();
+                    showDialogue('好眼力！'+c.name+(c.quality>70?'确实是制瓷的好料。':'嘛...虽然不是最好，但也可以试试。'),4000);
+                }}
+            ]);
+        }
+    });
+}
+
+// ==================== 第二关：练泥 ====================
+function initLevel2(){
+    G.refineProgress=0;G.kneadCount=0;G.kneadGood=0;G.lastKneadTime=0;
+    G.refinePhase='idle'; // idle | pressing | folding
+    G.refinePressTime=0;G.refineFoldTime=0;
+    G.refinePressDuration=0;G.refineFoldDuration=0;
+    setHint('按 ↓ 键 = 推压泥块 | 按 ↑ 键 = 折叠泥块 | 保持稳定节奏');
+    showInfo('<div class="info-row"><span>进度</span><span id="refine-pct">0%</span></div><div class="info-row"><span>气泡</span><span id="bubble-cnt">20</span></div><div class="info-row"><span>品质</span><span id="refine-q">粗糙</span></div><div class="info-row"><span>节奏</span><span id="refine-rhythm">--</span></div>');
+}
+let clayBubbles=20;let claySmooth=0;
+function drawLevel2(){
+    drawWorkshopBg();
+    // 工作台
+    ctx.fillStyle='#5a3d20';ctx.fillRect(W*0.15,H*0.55,W*0.7,H*0.15);
+    drawWoodGrain(W*0.15,H*0.55,W*0.7,H*0.15);
+    // 老师傅
+    drawMaster(W*0.82,H*0.25,0.6);
+    // 瓷泥块 - 根据按压/折叠状态动态变形
+    const cx=W*0.42,cy=H*0.5;
+    const sm=claySmooth/100;
+    ctx.save();
+    // 计算泥块形变
+    let scaleX=1,scaleY=1;
+    let pressingAmount=0,foldingAmount=0;
+    if(G.refinePhase==='pressing'){
+        // 推压：泥块变宽变矮
+        pressingAmount=Math.min(1,(Date.now()-G.refinePressTime)/800);
+        scaleX=1+pressingAmount*0.5;
+        scaleY=1-pressingAmount*0.35;
+    }else if(G.refinePhase==='folding'){
+        // 折叠：泥块回弹变高
+        foldingAmount=Math.min(1,(Date.now()-G.refineFoldTime)/600);
+        scaleX=1+(1-foldingAmount)*0.3;
+        scaleY=1-(1-foldingAmount)*0.2;
+    }
+    const bw=(70+Math.sin(G.time*2)*3*(1-sm))*scaleX;
+    const bh=(45+Math.cos(G.time*1.5)*2*(1-sm))*scaleY;
+    ctx.beginPath();
+    roundRect(cx-bw,cy-bh,bw*2,bh*2,18+sm*10);
+    const cg=ctx.createRadialGradient(cx-20,cy-15,10,cx,cy,Math.max(1,bw));
+    cg.addColorStop(0,`rgb(${232-sm*20},${224-sm*20},${212-sm*15})`);
+    cg.addColorStop(1,`rgb(${200-sm*30},${190-sm*25},${175-sm*20})`);
+    ctx.fillStyle=cg;ctx.fill();
+    ctx.strokeStyle=`rgba(${150-sm*30},${130-sm*25},${100-sm*20},0.5)`;ctx.lineWidth=1;ctx.stroke();
+    // 气泡（推压时溢出）
+    for(let i=0;i<Math.min(clayBubbles,20);i++){
+        const angle=(i/20)*Math.PI*2+G.time*0.3;
+        const r=20+i*2+Math.sin(G.time+i)*5;
+        const bx=cx+Math.cos(angle)*r*scaleX;
+        const by=cy+Math.sin(angle)*r*0.6*scaleY;
+        ctx.beginPath();ctx.arc(bx,by,2+Math.random(),0,Math.PI*2);
+        // 推压时气泡上浮
+        if(G.refinePhase==='pressing'&&pressingAmount>0.5){
+            ctx.fillStyle='rgba(180,170,150,0.1)';
+        }else{
+            ctx.fillStyle='rgba(180,170,150,0.4)';
+        }
+        ctx.fill();
+    }
+    // 推压时的手印效果
+    if(G.refinePhase==='pressing'){
+        ctx.globalAlpha=pressingAmount*0.3;
+        ctx.beginPath();ctx.ellipse(cx-40,cy,18,12,-0.2,0,Math.PI*2);
+        ctx.fillStyle='rgba(180,160,120,0.4)';ctx.fill();
+        ctx.beginPath();ctx.ellipse(cx+40,cy,18,12,0.2,0,Math.PI*2);
+        ctx.fillStyle='rgba(180,160,120,0.4)';ctx.fill();
+        ctx.globalAlpha=1;
+    }
+    // 动作指示面板（大字提示）
+    const phaseText=G.refinePhase==='pressing'?'推 压 中 ...':G.refinePhase==='folding'?'折 叠 中 ...':'等待操作';
+    const phaseColor=G.refinePhase==='pressing'?'#d4a843':G.refinePhase==='folding'?'#7ab87a':'#a08040';
+    // 背景框
+    ctx.fillStyle='rgba(20,14,6,0.75)';
+    roundRect(cx-100,cy-bh-70,200,40,10);
+    ctx.fill();
+    ctx.strokeStyle=phaseColor;ctx.lineWidth=2;
+    roundRect(cx-100,cy-bh-70,200,40,10);
+    ctx.stroke();
+    ctx.fillStyle=phaseColor;ctx.font='bold 18px "Noto Serif SC"';ctx.textAlign='center';
+    ctx.fillText(phaseText,cx,cy-bh-45);
+    // 推压方向箭头动画（向下箭头 ↓）
+    if(G.refinePhase==='pressing'){
+        const arrowPhase=(Date.now()%1200)/1200;
+        const arrowAlpha=1-arrowPhase;
+        ctx.save();
+        ctx.globalAlpha=arrowAlpha*0.7;
+        ctx.strokeStyle='#d4a843';ctx.lineWidth=3;
+        // 左向下箭头 ↓
+        const ax1=cx-bw-30;const ay1=cy-bh-60+arrowPhase*25;
+        ctx.beginPath();ctx.moveTo(ax1,ay1);ctx.lineTo(ax1,ay1+30);
+        ctx.stroke();
+        ctx.beginPath();ctx.moveTo(ax1,ay1+30);ctx.lineTo(ax1-6,ay1+22);ctx.moveTo(ax1,ay1+30);ctx.lineTo(ax1+6,ay1+22);ctx.stroke();
+        // 右向下箭头 ↓
+        const ax2=cx+bw+30;const ay2=cy-bh-60+arrowPhase*25;
+        ctx.beginPath();ctx.moveTo(ax2,ay2);ctx.lineTo(ax2,ay2+30);
+        ctx.stroke();
+        ctx.beginPath();ctx.moveTo(ax2,ay2+30);ctx.lineTo(ax2-6,ay2+22);ctx.moveTo(ax2,ay2+30);ctx.lineTo(ax2+6,ay2+22);ctx.stroke();
+        ctx.restore();
+    }
+    // 折叠方向箭头动画（向上箭头 ↑）
+    if(G.refinePhase==='folding'){
+        const arrowPhase=(Date.now()%1000)/1000;
+        const arrowAlpha=1-arrowPhase;
+        ctx.save();
+        ctx.globalAlpha=arrowAlpha*0.7;
+        ctx.strokeStyle='#7ab87a';ctx.lineWidth=3;
+        // 左向上箭头 ↑
+        const ax1=cx-bw-30;const ay1=cy-bh-30-arrowPhase*20;
+        ctx.beginPath();ctx.moveTo(ax1,ay1);ctx.lineTo(ax1,ay1-25);
+        ctx.stroke();
+        ctx.beginPath();ctx.moveTo(ax1,ay1-25);ctx.lineTo(ax1-6,ay1-17);ctx.moveTo(ax1,ay1-25);ctx.lineTo(ax1+6,ay1-17);ctx.stroke();
+        // 右向上箭头 ↑
+        const ax2=cx+bw+30;const ay2=cy-bh-30-arrowPhase*20;
+        ctx.beginPath();ctx.moveTo(ax2,ay2);ctx.lineTo(ax2,ay2-25);
+        ctx.stroke();
+        ctx.beginPath();ctx.moveTo(ax2,ay2-25);ctx.lineTo(ax2-6,ay2-17);ctx.moveTo(ax2,ay2-25);ctx.lineTo(ax2+6,ay2-17);ctx.stroke();
+        ctx.restore();
+    }
+    // 空闲时显示大号操作指引
+    if(G.refinePhase==='idle'&&G.kneadCount<3){
+        ctx.save();
+        ctx.fillStyle='rgba(20,14,6,0.65)';
+        roundRect(cx-120,cy-bh-115,240,35,8);ctx.fill();
+        ctx.fillStyle='#e8d5b0';ctx.font='14px "Noto Serif SC"';ctx.textAlign='center';
+        ctx.fillText('按 ↓ 键开始推压',cx,cy-bh-93);
+        ctx.restore();
+    }
+    ctx.restore();
+    // 进度环
+    drawProgressRing(W*0.7,H*0.45,40,G.refineProgress);
+    // 操作说明面板（右上角信息下方）
+    const guideY=H*0.65;
+    ctx.save();
+    ctx.fillStyle='rgba(20,14,6,0.7)';
+    roundRect(W*0.05,guideY,W*0.22,80,8);ctx.fill();
+    ctx.strokeStyle='#6b4f1d';ctx.lineWidth=1;
+    roundRect(W*0.05,guideY,W*0.22,80,8);ctx.stroke();
+    ctx.font='13px "Noto Serif SC"';ctx.textAlign='left';
+    ctx.fillStyle='#d4a843';ctx.fillText('操作说明',W*0.07,guideY+20);
+    ctx.fillStyle='#e8d5b0';
+    ctx.fillText('① 按 ↓ 键 = 推压（压扁）',W*0.07,guideY+42);
+    ctx.fillText('② 按 ↑ 键 = 折叠（叠高）',W*0.07,guideY+62);
+    ctx.fillText('③ 保持均匀节奏，不要太快太慢',W*0.07,guideY+77);
+    ctx.restore();
+    // 更新信息
+    const el1=document.getElementById('refine-pct');
+    const el2=document.getElementById('bubble-cnt');
+    const el3=document.getElementById('refine-q');
+    const el4=document.getElementById('refine-rhythm');
+    if(el1)el1.textContent=Math.floor(G.refineProgress*100)+'%';
+    if(el2)el2.textContent=clayBubbles;
+    if(el3)el3.textContent=G.refineProgress>0.7?'细腻':G.refineProgress>0.4?'一般':'粗糙';
+    // 灰尘
+    if(Math.random()<0.03)spawnDust(cx+Math.random()*100-50,cy-20,1);
+}
+function handleLevel2Down(mx,my){
+    if(G.refinePhase==='folding')return; // 折叠动画中不响应
+    G.mouseDown=true;
+    G.refinePhase='pressing';
+    G.refinePressTime=Date.now();
+    playSound('click');
+}
+function handleLevel2Up(){
+    if(!G.mouseDown)return;
+    G.mouseDown=false;
+    // 结束推压，开始折叠
+    const pressDuration=Date.now()-G.refinePressTime;
+    G.refinePressDuration=pressDuration;
+    G.refinePhase='folding';
+    G.refineFoldTime=Date.now();
+    // 推压持续时间反馈
+    if(pressDuration<300){
+        showDialogue('推压太短了，多压一会儿...',1500);
+    }else if(pressDuration>2000){
+        showDialogue('压太久了，该折叠了...',1500);
+    }
+    playSound('knead');
+    spawnDust(W*0.42,H*0.45,3);
+    // 折叠完成后结算（延迟600ms）
+    setTimeout(()=>{
+        if(G.refinePhase!=='folding')return;
+        G.refinePhase='idle';
+        const now=Date.now();
+        const interval=now-G.lastKneadTime;
+        G.lastKneadTime=now;
+        // 节奏评估：推压时长在400~1200ms最佳
+        const pressScore=G.refinePressDuration>=400&&G.refinePressDuration<=1200;
+        // 整体节奏评估：两次操作间隔在400~1500ms
+        const rhythmScore=interval>400&&interval<1500;
+        if(pressScore&&rhythmScore){
+            G.kneadGood++;
+            G.refineProgress=Math.min(1,G.refineProgress+0.04+Math.random()*0.02);
+            claySmooth=Math.min(100,claySmooth+2.5);
+            clayBubbles=Math.max(0,clayBubbles-1);
+            if(el4_refine_rhythm)el4_refine_rhythm.textContent='完美';
+            if(el4_refine_rhythm)el4_refine_rhythm.style.color='#7ab87a';
+        }else if(pressScore||rhythmScore){
+            G.refineProgress=Math.min(1,G.refineProgress+0.02);
+            claySmooth=Math.min(100,claySmooth+1);
+            clayBubbles=Math.max(0,clayBubbles-0);
+            if(pressScore){
+                if(el4_refine_rhythm)el4_refine_rhythm.textContent='节奏偏快';
+                if(el4_refine_rhythm)el4_refine_rhythm.style.color='#d4a843';
+            }else{
+                if(el4_refine_rhythm)el4_refine_rhythm.textContent='推压不够';
+                if(el4_refine_rhythm)el4_refine_rhythm.style.color='#d4a843';
+            }
+        }else{
+            G.refineProgress=Math.min(1,G.refineProgress+0.01);
+            if(el4_refine_rhythm)el4_refine_rhythm.textContent='需改进';
+            if(el4_refine_rhythm)el4_refine_rhythm.style.color='#c45050';
+        }
+        G.kneadCount++;
+        if(G.refineProgress>=1){
+            G.quality.refine=Math.min(100,Math.floor(G.kneadGood/Math.max(1,G.kneadCount)*100));
+            showComplete();
+            showDialogue('不错，泥练得'+(G.quality.refine>70?'很细腻！':'还可以，继续加油。'),3000);
+        }
+    },600);
+}
+let el4_refine_rhythm=null;
+// 初始化时缓存DOM引用
+setTimeout(()=>{el4_refine_rhythm=document.getElementById('refine-rhythm');},100);
+
+// ==================== 第三关：拉坯 ====================
+let potProfile=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+let targetPot=[30,35,38,40,42,44,46,48,50,48,46,44,38,30,20,10];
+function initLevel3(){
+    potProfile=[20,22,24,26,28,30,32,34,36,34,32,30,26,22,16,8];
+    G.potControlY=0.5;G.throwPhase=0;G.deformWarning=0;
+    G.wheelAngle=0;
+    setHint('↑↓←→ 塑形 | 按 Enter 键完成拉坯');
+    showInfo('<div class="info-row"><span>高度</span><span id="pot-h">低</span></div><div class="info-row"><span>均匀度</span><span id="pot-e">--</span></div>');
+    playSound('wheel');
+}
+function drawLevel3(){
+    drawWorkshopBg();
+    // 拉坯机
+    const cx=W*0.4,cy=H*0.6;
+    // 底座
+    ctx.fillStyle='#4a3018';
+    ctx.fillRect(cx-60,cy+30,120,40);
+    // 转盘
+    G.wheelAngle+=G.dt*3;
+    ctx.save();ctx.translate(cx,cy+25);
+    ctx.rotate(G.wheelAngle);
+    const wg=ctx.createRadialGradient(0,0,5,0,0,70);
+    wg.addColorStop(0,'#6b5030');wg.addColorStop(0.5,'#8b6530');wg.addColorStop(1,'#5a4020');
+    ctx.beginPath();ctx.arc(0,0,68,0,Math.PI*2);ctx.fillStyle=wg;ctx.fill();
+    ctx.strokeStyle='#4a3018';ctx.lineWidth=3;ctx.stroke();
+    // 转盘纹理
+    for(let i=0;i<8;i++){
+        const a=(i/8)*Math.PI*2;
+        ctx.beginPath();ctx.moveTo(0,0);
+        ctx.lineTo(Math.cos(a)*65,Math.sin(a)*65);
+        ctx.strokeStyle='rgba(74,48,24,0.3)';ctx.lineWidth=1;ctx.stroke();
+    }
+    ctx.restore();
+    // 器物
+    ctx.save();ctx.translate(cx,cy+15);
+    // 阴影
+    ctx.beginPath();ctx.ellipse(0,20,50,12,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fill();
+    // 器壁
+    const ph=potProfile.length;
+    const segH=4;
+    ctx.beginPath();
+    ctx.moveTo(-potProfile[0],0);
+    for(let i=1;i<ph;i++){
+        const x=-potProfile[i];
+        const y=-i*segH;
+        ctx.lineTo(x,y);
+    }
+    for(let i=ph-1;i>=0;i--){
+        const x=potProfile[i];
+        const y=-i*segH;
+        ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    const potG=ctx.createLinearGradient(-50,0,50,0);
+    potG.addColorStop(0,'#c4b89a');potG.addColorStop(0.3,'#ddd4be');
+    potG.addColorStop(0.7,'#e8e0cc');potG.addColorStop(1,'#b0a48a');
+    ctx.fillStyle=potG;ctx.fill();
+    ctx.strokeStyle='#a0947a';ctx.lineWidth=1;ctx.stroke();
+    // 口沿
+    ctx.beginPath();ctx.ellipse(0,-(ph-1)*segH,potProfile[ph-1],6,0,0,Math.PI*2);
+    ctx.fillStyle='#d8ceb8';ctx.fill();ctx.strokeStyle='#a0947a';ctx.stroke();
+    // 水珠效果
+    if(G.mouseDown){
+        for(let i=0;i<2;i++)spawnWater(cx+Math.random()*60-30,cy-20+Math.random()*20,1);
+    }
+    ctx.restore();
+    // 变形警告
+    if(G.deformWarning>0.5){
+        ctx.fillStyle='rgba(200,50,50,'+(G.deformWarning-0.5)*0.5+')';
+        ctx.font='16px "Noto Serif SC"';ctx.textAlign='center';
+        ctx.fillText('注意：压力不均，器型正在变形！',W*0.4,H*0.15);
+        G.deformWarning=Math.max(0,G.deformWarning-G.dt);
+    }
+    // 老师傅
+    drawMaster(W*0.78,H*0.28,0.7);
+    // 更新信息
+    const maxH=Math.max(...potProfile);
+    const avgH=potProfile.reduce((a,b)=>a+b,0)/potProfile.length;
+    const el1=document.getElementById('pot-h');
+    const el2=document.getElementById('pot-e');
+    if(el1)el1.textContent=maxH>40?'高':maxH>30?'中':'低';
+    if(el2){
+        const variance=potProfile.reduce((a,b)=>a+Math.abs(b-avgH),0)/potProfile.length;
+        el2.textContent=variance<5?'优秀':variance<10?'良好':variance<15?'一般':'需调整';
+    }
+    // 水滴
+    if(Math.random()<0.05)spawnWater(cx+Math.random()*40-20,cy-Math.random()*60,1);
+}
+function handleLevel3Down(mx,my){
+    G.mouseDown=true;G.potControlY=my/H;
+}
+function handleLevel3Move(mx,my){
+    if(!G.mouseDown)return;
+    const controlY=my/H;
+    const diff=controlY-G.potControlY;
+    G.potControlY=controlY;
+    // 上拉 -> 变高变薄
+    if(diff<-0.005){
+        for(let i=4;i<potProfile.length-2;i++){
+            potProfile[i]=Math.min(55,potProfile[i]+Math.abs(diff)*30);
+        }
+    }
+    // 下压 -> 收口
+    if(diff>0.005){
+        potProfile[potProfile.length-1]=Math.max(8,potProfile[potProfile.length-1]-diff*40);
+        potProfile[potProfile.length-2]=Math.max(10,potProfile[potProfile.length-2]-diff*20);
+    }
+    // 平滑
+    for(let i=1;i<potProfile.length-1;i++){
+        potProfile[i]=potProfile[i]*0.95+(potProfile[i-1]+potProfile[i+1])*0.025;
+    }
+    // 检查变形
+    const avg=potProfile.reduce((a,b)=>a+b,0)/potProfile.length;
+    const maxDev=Math.max(...potProfile.map(v=>Math.abs(v-avg)));
+    if(maxDev>15)G.deformWarning=Math.min(1,G.deformWarning+0.1);
+}
+function handleLevel3Up(){
+    if(G.mouseDown){
+        G.mouseDown=false;
+        // 评估
+        const avg=potProfile.reduce((a,b)=>a+b,0)/potProfile.length;
+        const variance=potProfile.reduce((a,b)=>a+Math.abs(b-avg),0)/potProfile.length;
+        G.quality.throw=Math.max(10,Math.min(100,Math.floor(100-variance*3)));
+        showComplete();
+        showDialogue(G.quality.throw>70?'好手法！器型匀称。':'还可以，下次注意控制力道。',3000);
+    }
+}
+
+// ==================== 第四关：修坯 ====================
+function initLevel4(){
+    G.trimProgress=0;G.trimX=W*0.3;G.trimDone=false;
+    G.wheelAngle=0;
+    setHint('移动鼠标控制修坯刀，削去多余的泥');
+    showInfo('<div class="info-row"><span>修整度</span><span id="trim-pct">0%</span></div>');
+    playSound('wheel');
+}
+let trimTarget=[];
+function drawLevel4(){
+    drawWorkshopBg();
+    const cx=W*0.4,cy=H*0.55;
+    // 转盘
+    G.wheelAngle+=G.dt*2;
+    ctx.save();ctx.translate(cx,cy+20);
+    ctx.rotate(G.wheelAngle);
+    const wg=ctx.createRadialGradient(0,0,5,0,0,60);
+    wg.addColorStop(0,'#6b5030');wg.addColorStop(1,'#5a4020');
+    ctx.beginPath();ctx.arc(0,0,58,0,Math.PI*2);ctx.fillStyle=wg;ctx.fill();
+    ctx.strokeStyle='#4a3018';ctx.lineWidth=2;ctx.stroke();
+    ctx.restore();
+    // 倒扣的坯体
+    ctx.save();ctx.translate(cx,cy+10);
+    const segH=3.5;
+    const ph=potProfile.length;
+    // 修整后的轮廓
+    const trimAmount=G.trimProgress;
+    ctx.beginPath();
+    ctx.moveTo(-potProfile[0]*(1-trimAmount*0.15),-(ph-1)*segH);
+    for(let i=ph-1;i>=0;i--){
+        const r=potProfile[i]*(1-trimAmount*0.15*(1-i/ph));
+        const y=-(ph-1-i)*segH;
+        ctx.lineTo(r,y);
+    }
+    for(let i=0;i<ph;i++){
+        const r=potProfile[i]*(1-trimAmount*0.15*(1-i/ph));
+        const y=-(ph-1-i)*segH;
+        ctx.lineTo(-r,y);
+    }
+    ctx.closePath();
+    const tg=ctx.createLinearGradient(-50,0,50,0);
+    tg.addColorStop(0,'#b8aa90');tg.addColorStop(0.4,'#d8d0b8');
+    tg.addColorStop(0.6,'#ddd4be');tg.addColorStop(1,'#a89878');
+    ctx.fillStyle=tg;ctx.fill();ctx.strokeStyle='#98906a';ctx.lineWidth=1;ctx.stroke();
+    // 圈足（逐渐显现）
+    if(trimProgress>0.3){
+        const footAlpha=Math.min(1,(trimProgress-0.3)/0.4);
+        ctx.beginPath();
+        ctx.ellipse(0,0,potProfile[0]*0.7,5,0,0,Math.PI*2);
+        ctx.fillStyle=`rgba(180,170,150,${footAlpha})`;ctx.fill();
+        ctx.strokeStyle=`rgba(140,130,110,${footAlpha})`;ctx.stroke();
+    }
+    ctx.restore();
+    // 修坯刀
+    ctx.save();
+    ctx.translate(G.trimX,cy-20);
+    ctx.rotate(-0.3);
+    ctx.fillStyle='#888';ctx.fillRect(-2,0,4,60);
+    ctx.fillStyle='#aaa';ctx.beginPath();ctx.moveTo(-3,-5);ctx.lineTo(3,-5);ctx.lineTo(0,5);ctx.closePath();ctx.fill();
+    ctx.restore();
+    // 老师傅
+    drawMaster(W*0.78,H*0.25,0.7);
+    // 泥屑粒子
+    if(G.mouseDown&&G.trimX>cx-60&&G.trimX<cx+60){
+        spawnChip(G.trimX,cy-10,2);
+        playSound('chip');
+    }
+    // 更新
+    const el=document.getElementById('trim-pct');
+    if(el)el.textContent=Math.floor(G.trimProgress*100)+'%';
+}
+let trimProgress=0;
+function handleLevel4Move(mx,my){
+    G.trimX=mx;
+    const cx=W*0.4,cy=H*0.55;
+    if(mx>cx-60&&mx<cx+60&&my>cy-80&&my<cy+30){
+        if(G.mouseDown){
+            trimProgress=Math.min(1,trimProgress+G.dt*0.15);
+            G.trimProgress=trimProgress;
+            if(trimProgress>=1&&!G.trimDone){
+                G.trimDone=true;
+                G.quality.trim=Math.min(100,80+Math.floor(Math.random()*20));
+                showComplete();
+                showDialogue('修得不错，底足规整。',3000);
+            }
+        }
+    }
+}
+
+// ==================== 第五关：青花 ====================
+function initLevel5(){
+    G.brushDown=false;G.brushPoints=[];
+    setHint('在瓷器表面自由绘制青花图案');
+    showInfo('<div class="info-row"><span>笔触</span><span id="brush-cnt">0</span></div><div class="info-row"><span>颜色</span><span>灰黑（烧后变蓝）</span></div>');
+}
+let paintingCanvas=null;
+function initPaintCanvas(){
+    paintingCanvas=document.createElement('canvas');
+    paintingCanvas.width=300;paintingCanvas.height=300;
+    const pctx=paintingCanvas.getContext('2d');
+    pctx.fillStyle='#e8e0d4';
+    pctx.beginPath();pctx.ellipse(150,150,140,80,0,0,Math.PI*2);pctx.fill();
+}
+function drawLevel5(){
+    drawWorkshopBg();
+    const cx=W*0.42,cy=H*0.45;
+    // 白瓷坯（转台）
+    ctx.save();
+    // 瓷坯阴影
+    ctx.beginPath();ctx.ellipse(cx,cy+60,120,25,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.15)';ctx.fill();
+    // 瓷坯主体
+    ctx.beginPath();ctx.ellipse(cx,cy,120,70,0,0,Math.PI*2);
+    const pg=ctx.createRadialGradient(cx-20,cy-20,10,cx,cy,120);
+    pg.addColorStop(0,'#f0ebe0');pg.addColorStop(1,'#d8d0c0');
+    ctx.fillStyle=pg;ctx.fill();
+    ctx.strokeStyle='#c0b8a0';ctx.lineWidth=1.5;ctx.stroke();
+    // 绘画内容
+    if(paintingCanvas){
+        ctx.save();ctx.beginPath();ctx.ellipse(cx,cy,115,65,0,0,Math.PI*2);ctx.clip();
+        ctx.drawImage(paintingCanvas,cx-150,cy-150,300,300);
+        ctx.restore();
+    }
+    ctx.restore();
+    // 毛笔
+    const bx=G.mouseX,by=G.mouseY;
+    ctx.save();
+    ctx.translate(bx,by);
+    ctx.rotate(-0.5);
+    // 笔杆
+    ctx.fillStyle='#6b4f2d';ctx.fillRect(-3,-50,6,45);
+    // 笔头
+    ctx.beginPath();ctx.moveTo(-4,-5);ctx.lineTo(4,-5);ctx.lineTo(1,8);ctx.lineTo(-1,8);ctx.closePath();
+    ctx.fillStyle='#333';ctx.fill();
+    ctx.restore();
+    // 颜料碟
+    ctx.beginPath();ctx.ellipse(W*0.75,cy+40,30,12,0,0,Math.PI*2);
+    ctx.fillStyle='#4a3a2a';ctx.fill();ctx.strokeStyle='#3a2a1a';ctx.stroke();
+    ctx.beginPath();ctx.ellipse(W*0.75,cy+38,22,8,0,0,Math.PI*2);
+    ctx.fillStyle='#2a2a2a';ctx.fill();
+    // 老师傅
+    drawMaster(W*0.15,H*0.25,0.65);
+    // 更新
+    const el=document.getElementById('brush-cnt');
+    if(el)el.textContent=G.brushPoints.length;
+}
+function handleLevel5Down(mx,my){
+    G.brushDown=true;
+    initPaintCanvas();
+    G.brushPoints=[];
+}
+function handleLevel5Move(mx,my){
+    if(!G.brushDown||!paintingCanvas)return;
+    const cx=W*0.42,cy=H*0.45;
+    // 检查是否在瓷坯上
+    const dx=(mx-cx)/115,dy=(my-cy)/65;
+    if(dx*dx+dy*dy<=1){
+        G.brushPoints.push({x:mx-cx+150,y:my-cy+150});
+        const pctx=paintingCanvas.getContext('2d');
+        const px=mx-cx+150,py=my-cy+150;
+        if(G.brushPoints.length>1){
+            const prev=G.brushPoints[G.brushPoints.length-2];
+            pctx.beginPath();pctx.moveTo(prev.x,prev.y);pctx.lineTo(px,py);
+            pctx.strokeStyle='#2a2a2a';pctx.lineWidth=3;pctx.lineCap='round';pctx.lineJoin='round';pctx.stroke();
+            // 毛笔质感
+            pctx.beginPath();pctx.moveTo(prev.x,prev.y);pctx.lineTo(px,py);
+            pctx.strokeStyle='rgba(40,40,40,0.3)';pctx.lineWidth=6;pctx.stroke();
+            if(Math.random()<0.3)playSound('brush');
+        }
+    }
+}
+function handleLevel5Up(){
+    if(G.brushDown){
+        G.brushDown=false;
+        if(G.brushPoints.length>5){
+            G.quality.paint=Math.min(100,50+G.brushPoints.length/5);
+            showComplete();
+            showDialogue('画得有模有样！入窑后就是美丽的青花。',3000);
+        }
+    }
+}
+
+// ==================== 第六关：施釉 ====================
+function initLevel6(){
+    G.glazeProgress=0;G.glazeDip=0;G.glazeSpeed=0;G.glazeDipping=false;G.glazeEvenness=0.5;
+    G.glazeY=H*0.2;
+    setHint('按住鼠标向下拖拽浸入釉缸，匀速提起');
+    showInfo('<div class="info-row"><span>浸入深度</span><span id="glaze-depth">0%</span></div><div class="info-row"><span>均匀度</span><span id="glaze-even">--</span></div>');
+}
+let glazeCoating=0;
+function drawLevel6(){
+    drawWorkshopBg();
+    const cx=W*0.45,cy=H*0.5;
+    // 釉缸
+    ctx.beginPath();
+    ctx.moveTo(cx-80,cy+40);ctx.lineTo(cx-90,cy+120);ctx.lineTo(cx+90,cy+120);ctx.lineTo(cx+80,cy+40);
+    ctx.closePath();
+    const gg=ctx.createLinearGradient(cx-90,cy,cx+90,cy);
+    gg.addColorStop(0,'#6b7a80');gg.addColorStop(0.5,'#8a9aa0');gg.addColorStop(1,'#5a6a70');
+    ctx.fillStyle=gg;ctx.fill();
+    ctx.strokeStyle='#4a5a60';ctx.lineWidth=3;ctx.stroke();
+    // 釉面
+    ctx.beginPath();ctx.ellipse(cx,cy+40,80,18,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(220,215,200,0.7)';ctx.fill();
+    // 瓷器
+    const potY=G.glazeY;
+    const potCY=potY+60;
+    // 未浸入部分
+    ctx.save();
+    ctx.beginPath();ctx.rect(0,0,W,cy+38);ctx.clip();
+    // 器物（未浸入）
+    ctx.beginPath();ctx.ellipse(cx,potCY,40,60,0,0,Math.PI*2);
+    const upg=ctx.createRadialGradient(cx-10,potCY-15,5,cx,potCY,60);
+    if(glazeCoating>0){
+        upg.addColorStop(0,'#e8e4dc');upg.addColorStop(1,'#d0ccc4');
+    }else{
+        upg.addColorStop(0,'#e0d8c8');upg.addColorStop(1,'#c8c0b0');
+    }
+    ctx.fillStyle=upg;ctx.fill();
+    ctx.strokeStyle='#a09888';ctx.lineWidth=1;ctx.stroke();
+    ctx.restore();
+    // 已浸入部分（釉层覆盖）
+    const dipLine=cy+38;
+    if(potCY-60<dipLine){
+        ctx.save();
+        ctx.beginPath();ctx.rect(0,dipLine,W,H);ctx.clip();
+        ctx.beginPath();ctx.ellipse(cx,potCY,42,62,0,0,Math.PI*2);
+        const dg=ctx.createRadialGradient(cx-10,potCY-15,5,cx,potCY,62);
+        dg.addColorStop(0,'#f0ece4');dg.addColorStop(0.5,'#e8e4dc');dg.addColorStop(1,'#ddd8d0');
+        ctx.fillStyle=dg;ctx.fill();
+        ctx.strokeStyle='#b0a898';ctx.lineWidth=1;ctx.stroke();
+        // 釉层光泽
+        ctx.beginPath();ctx.ellipse(cx-8,potCY-20,15,25,-0.3,0,Math.PI*2);
+        ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fill();
+        ctx.restore();
+    }
+    // 手
+    ctx.save();ctx.translate(cx-10,potCY-65);
+    ctx.fillStyle='#d4a873';ctx.fillRect(-8,0,16,10);ctx.fillRect(-12,-5,8,15);ctx.fillRect(4,-5,8,15);
+    ctx.restore();
+    // 老师傅
+    drawMaster(W*0.82,H*0.2,0.6);
+    // 滴釉效果
+    if(G.glazeDipping&&Math.random()<0.1){
+        spawnWater(cx+Math.random()*30-15,dipLine-5,1);
+    }
+    // 更新
+    const dipPct=Math.min(100,Math.max(0,Math.floor((potCY-cy+20)/160*100)));
+    const el1=document.getElementById('glaze-depth');
+    const el2=document.getElementById('glaze-even');
+    if(el1)el1.textContent=dipPct+'%';
+    if(el2)el2.textContent=G.glazeEvenness>0.7?'均匀':G.glazeEvenness>0.4?'一般':'不均';
+}
+function handleLevel6Down(mx,my){
+    G.glazeDipping=true;
+    playSound('splash');
+}
+function handleLevel6Move(mx,my){
+    if(!G.glazeDipping)return;
+    const prevY=G.glazeY;
+    G.glazeY=Math.max(H*0.1,Math.min(H*0.65,my-60));
+    G.glazeSpeed=Math.abs(G.glazeY-prevY);
+    if(G.glazeSpeed>0&&G.glazeSpeed<3){
+        G.glazeEvenness=Math.min(1,G.glazeEvenness+0.002);
+    }else if(G.glazeSpeed>=3){
+        G.glazeEvenness=Math.max(0,G.glazeEvenness-0.005);
+    }
+    const potCY=G.glazeY+60;
+    if(potCY>H*0.35)glazeCoating=Math.min(1,(potCY-H*0.35)/100);
+}
+function handleLevel6Up(){
+    if(G.glazeDipping){
+        G.glazeDipping=false;
+        if(glazeCoating>0.5){
+            G.quality.glaze=Math.floor(G.glazeEvenness*100);
+            showComplete();
+            showDialogue(G.glazeEvenness>0.6?'釉层均匀，不错！':'釉层不太均匀，但还可以。',3000);
+        }
+    }
+}
+
+// ==================== 第七关：装窑 ====================
+function initLevel7(){
+    G.kilnPlaced=false;G.kilnDrag=false;
+    setHint('拖拽瓷器放入匣钵中');
+    showInfo('<div class="info-row"><span>状态</span><span>待装窑</span></div>');
+    spawnFireParticles();
+}
+function spawnFireParticles(){
+    if(G.fireParticles.length<30)G.fireParticles.push({
+        x:W*0.3+Math.random()*W*0.5,
+        y:H*0.7+Math.random()*H*0.2,
+        vx:(Math.random()-0.5)*0.5,
+        vy:-Math.random()*2-0.5,
+        life:1,
+        size:Math.random()*6+2
+    });
+}
+function drawLevel7(){
+    // 昏暗龙窑内部
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#0a0500');bg.addColorStop(0.3,'#1a0a00');bg.addColorStop(0.7,'#2a1500');bg.addColorStop(1,'#1a0a00');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    // 窑壁
+    ctx.fillStyle='#3a2510';
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(W*0.15,H*0.3);ctx.lineTo(W*0.1,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(W,0);ctx.lineTo(W*0.85,H*0.3);ctx.lineTo(W*0.9,H);ctx.lineTo(W,H);ctx.closePath();ctx.fill();
+    // 窑顶
+    ctx.fillStyle='#2a1808';
+    ctx.beginPath();ctx.moveTo(W*0.1,H*0.1);ctx.quadraticCurveTo(W*0.5,0,W*0.9,H*0.1);
+    ctx.lineTo(W*0.85,H*0.3);ctx.quadraticCurveTo(W*0.5,H*0.15,W*0.15,H*0.3);ctx.closePath();ctx.fill();
+    // 火焰光晕
+    for(let i=0;i<3;i++){
+        const fx=W*0.3+i*W*0.2;
+        const fy=H*0.75;
+        const fg=ctx.createRadialGradient(fx,fy,0,fx,fy,80);
+        fg.addColorStop(0,'rgba(255,120,20,0.3)');fg.addColorStop(0.5,'rgba(255,80,10,0.1)');fg.addColorStop(1,'rgba(255,50,0,0)');
+        ctx.fillStyle=fg;ctx.fillRect(fx-80,fy-80,160,160);
+    }
+    // 火焰粒子
+    updateParticles(G.fireParticles,G.dt);
+    G.fireParticles.forEach(p=>{
+        ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+        const hue=20+p.size*5;
+        ctx.fillStyle=`hsla(${hue},100%,${50+p.life*30}%,${p.life*0.6})`;
+        ctx.fill();
+    });
+    spawnFireParticles();
+    // 匣钵
+    const sx=W*0.5,sy=H*0.55;
+    ctx.fillStyle='#8a7a68';
+    ctx.beginPath();ctx.moveTo(sx-60,sy);ctx.lineTo(sx-65,sy+60);ctx.lineTo(sx+65,sy+60);ctx.lineTo(sx+60,sy);ctx.closePath();
+    ctx.fill();ctx.strokeStyle='#6a5a48';ctx.lineWidth=2;ctx.stroke();
+    // 匣钵盖
+    if(G.kilnPlaced){
+        ctx.fillStyle='#7a6a58';ctx.fillRect(sx-62,sy-5,124,10);
+        ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fillRect(sx-60,sy+5,120,55);
+    }else{
+        ctx.fillStyle='#7a6a58';ctx.fillRect(sx-62,sy-5,124,10);
+    }
+    // 瓷器（拖拽中或已放置）
+    if(G.kilnDrag){
+        ctx.save();
+        ctx.beginPath();ctx.ellipse(G.kilnDragX,G.kilnDragY,25,40,0,0,Math.PI*2);
+        ctx.fillStyle=glazeCoating>0.5?'#e8e4dc':'#d8d0c0';
+        ctx.fill();ctx.strokeStyle='#a09888';ctx.stroke();
+        // 青花
+        if(paintingCanvas){
+            ctx.save();ctx.beginPath();ctx.ellipse(G.kilnDragX,G.kilnDragY,23,38,0,0,Math.PI*2);ctx.clip();
+            ctx.globalAlpha=0.5;ctx.drawImage(paintingCanvas,G.kilnDragX-150,G.kilnDragY-150,300,300);
+            ctx.globalAlpha=1;ctx.restore();
+        }
+        ctx.restore();
+    }
+    // 目标位置提示
+    if(!G.kilnPlaced&&!G.kilnDrag){
+        ctx.beginPath();ctx.ellipse(sx,sy+25,25,35,0,0,Math.PI*2);
+        ctx.setLineDash([5,5]);ctx.strokeStyle='rgba(212,168,67,0.4)';ctx.lineWidth=2;ctx.stroke();
+        ctx.setLineDash([]);
+        // 瓷器在旁边
+        ctx.save();
+        ctx.beginPath();ctx.ellipse(W*0.25,H*0.5,25,40,0,0,Math.PI*2);
+        ctx.fillStyle=glazeCoating>0.5?'#e8e4dc':'#d8d0c0';
+        ctx.fill();ctx.strokeStyle='#a09888';ctx.stroke();
+        if(paintingCanvas){
+            ctx.save();ctx.beginPath();ctx.ellipse(W*0.25,H*0.5,23,38,0,0,Math.PI*2);ctx.clip();
+            ctx.globalAlpha=0.5;ctx.drawImage(paintingCanvas,W*0.25-150,H*0.5-150,300,300);
+            ctx.globalAlpha=1;ctx.restore();
+        }
+        ctx.restore();
+        ctx.fillStyle='#d4a843';ctx.font='14px "Noto Serif SC"';ctx.textAlign='center';
+        ctx.fillText('← 拖拽瓷器',W*0.25,H*0.6);
+    }
+    // 老师傅剪影
+    drawMaster(W*0.78,H*0.35,0.7,true);
+}
+function handleLevel7Down(mx,my){
+    if(!G.kilnPlaced){
+        const px=W*0.25,py=H*0.5;
+        if(Math.abs(mx-px)<40&&Math.abs(my-py)<50){
+            G.kilnDrag=true;G.kilnDragX=mx;G.kilnDragY=my;
+        }
+    }
+}
+function handleLevel7Move(mx,my){
+    if(G.kilnDrag){G.kilnDragX=mx;G.kilnDragY=my;}
+}
+function handleLevel7Up(){
+    if(G.kilnDrag){
+        G.kilnDrag=false;
+        const sx=W*0.5,sy=H*0.5;
+        if(Math.abs(G.kilnDragX-sx)<70&&Math.abs(G.kilnDragY-sy)<60){
+            G.kilnPlaced=true;
+            G.quality.kiln=90;
+            playSound('fire');
+            showComplete();
+            showDialogue('放好了。接下来，就是等待窑火的洗礼...',4000);
+            const el=document.querySelector('#info-panel .info-row span:last-child');
+            if(el)el.textContent='已装窑';
+        }
+    }
+}
+
+// ==================== 第八关：开窑 ====================
+function initLevel8(){
+    G.opened=false;
+    setHint('点击匣钵，打开窑门');
+    hideInfo();
+}
+let revealProgress=0;
+function drawLevel8(){
+    // 清晨窑场
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#2a3a4a');bg.addColorStop(0.3,'#4a5a5a');bg.addColorStop(0.5,'#6a7a70');
+    bg.addColorStop(0.7,'#8a9080');bg.addColorStop(1,'#a09878');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    // 远山
+    ctx.beginPath();ctx.moveTo(0,H*0.5);
+    for(let x=0;x<=W;x+=20){
+        ctx.lineTo(x,H*0.45+Math.sin(x*0.003)*40+Math.sin(x*0.007)*20);
+    }
+    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+    ctx.fillStyle='#5a6a58';ctx.fill();
+    // 窑体
+    ctx.fillStyle='#6a5040';
+    ctx.beginPath();ctx.moveTo(W*0.2,H*0.4);ctx.quadraticCurveTo(W*0.35,H*0.2,W*0.65,H*0.2);
+    ctx.quadraticCurveTo(W*0.8,H*0.2,W*0.85,H*0.4);ctx.lineTo(W*0.85,H*0.8);
+    ctx.lineTo(W*0.2,H*0.8);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#4a3828';ctx.lineWidth=3;ctx.stroke();
+    // 窑门
+    ctx.fillStyle='#4a3828';
+    ctx.beginPath();ctx.arc(W*0.52,H*0.55,40,Math.PI,0);ctx.lineTo(W*0.52+40,H*0.7);
+    ctx.lineTo(W*0.52-40,H*0.7);ctx.closePath();ctx.fill();
+    // 蒸汽
+    updateParticles(G.steamParticles,G.dt);
+    if(!G.opened&&Math.random()<0.15)spawnSteam(W*0.52+Math.random()*60-30,H*0.5,2);
+    G.steamParticles.forEach(p=>{
+        ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+        ctx.fillStyle=`rgba(200,200,200,${p.life*0.3})`;ctx.fill();
+    });
+    if(G.opened&&Math.random()<0.2)spawnSteam(W*0.52,H*0.5,1);
+    // 匣钵
+    const sx=W*0.52,sy=H*0.65;
+    ctx.fillStyle='#8a7a68';
+    ctx.beginPath();ctx.moveTo(sx-50,sy);ctx.lineTo(sx-55,sy+50);ctx.lineTo(sx+55,sy+50);ctx.lineTo(sx+50,sy);ctx.closePath();
+    ctx.fill();ctx.strokeStyle='#6a5a48';ctx.lineWidth=2;ctx.stroke();
+    if(G.opened){
+        // 瓷器展示
+        const reveal=Math.min(1,revealProgress);
+        ctx.save();ctx.translate(sx,sy-10);
+        // 器物
+        ctx.beginPath();ctx.ellipse(0,0,30,50,0,0,Math.PI*2);
+        const pg=ctx.createRadialGradient(-8,-15,5,0,0,50);
+        pg.addColorStop(0,'#f5f0ea');pg.addColorStop(1,'#e0d8cc');
+        ctx.fillStyle=pg;ctx.fill();
+        ctx.strokeStyle='#c0b8a8';ctx.lineWidth=1.5;ctx.stroke();
+        // 青花（变色动画：灰->蓝）
+        if(paintingCanvas){
+            ctx.save();ctx.beginPath();ctx.ellipse(0,0,28,48,0,0,Math.PI*2);ctx.clip();
+            // 先画原始的灰色
+            ctx.globalAlpha=1-reveal;
+            ctx.drawImage(paintingCanvas,-150,-150,300,300);
+            // 再画蓝色版本
+            ctx.globalAlpha=reveal;
+            ctx.filter='hue-rotate(200deg) saturate(3)';
+            ctx.drawImage(paintingCanvas,-150,-150,300,300);
+            ctx.filter='none';
+            ctx.globalAlpha=1;
+            ctx.restore();
+        }
+        // 光泽
+        ctx.beginPath();ctx.ellipse(-8,-15,10,20,-0.3,0,Math.PI*2);
+        ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fill();
+        ctx.restore();
+        revealProgress+=G.dt*0.3;
+    }else{
+        // 盖子
+        ctx.fillStyle='#7a6a58';ctx.fillRect(sx-52,sy-5,104,10);
+    }
+    // 老师傅
+    drawMaster(W*0.3,H*0.5,0.8);
+}
+
+// ==================== 绘制辅助 ====================
+function drawWorkshopBg(){
+    // 温暖的工作坊背景
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#2a1a0a');bg.addColorStop(0.3,'#3d2510');bg.addColorStop(0.6,'#4a3018');
+    bg.addColorStop(1,'#3a2510');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    // 墙壁纹理
+    ctx.fillStyle='rgba(60,40,20,0.3)';
+    for(let y=0;y<H;y+=40){
+        ctx.fillRect(0,y,W,1);
+    }
+    // 窗户光
+    const lg=ctx.createRadialGradient(W*0.7,H*0.15,0,W*0.7,H*0.15,W*0.4);
+    lg.addColorStop(0,'rgba(255,220,150,0.15)');lg.addColorStop(0.5,'rgba(255,200,100,0.05)');
+    lg.addColorStop(1,'rgba(255,180,80,0)');
+    ctx.fillStyle=lg;ctx.fillRect(0,0,W,H);
+    // 地板
+    ctx.fillStyle='#3a2510';ctx.fillRect(0,H*0.8,W,H*0.2);
+    drawWoodGrain(0,H*0.8,W,H*0.2);
+    // 灰尘粒子
+    updateParticles(G.dustParticles,G.dt);
+    G.dustParticles.forEach(p=>{
+        ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+        ctx.fillStyle=`rgba(200,180,140,${p.life*0.4})`;ctx.fill();
+    });
+}
+function drawWoodGrain(x,y,w,h){
+    ctx.save();
+    ctx.globalAlpha=0.15;
+    for(let i=0;i<20;i++){
+        const ly=y+(h/20)*i;
+        ctx.beginPath();ctx.moveTo(x,ly);
+        for(let lx=x;lx<x+w;lx+=30){
+            ctx.lineTo(lx,ly+Math.sin(lx*0.02+i)*3);
+        }
+        ctx.strokeStyle='#2a1a0a';ctx.lineWidth=1;ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    ctx.restore();
+}
+function drawMaster(x,y,scale=1,silhouette=false){
+    ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+    // 身体
+    ctx.beginPath();
+    if(silhouette){
+        ctx.fillStyle='#1a0a00';
+    }else{
+        const mg=ctx.createLinearGradient(-20,-60,20,40);
+        mg.addColorStop(0,'#5a4a3a');mg.addColorStop(1,'#4a3a2a');
+        ctx.fillStyle=mg;
+    }
+    // 头
+    ctx.beginPath();ctx.arc(0,-65,18,0,Math.PI*2);ctx.fill();
+    // 帽子
+    ctx.beginPath();ctx.ellipse(0,-80,22,8,0,0,Math.PI*2);ctx.fill();
+    ctx.fillRect(-15,-85,30,8);
+    // 身体
+    ctx.beginPath();ctx.moveTo(-25,-48);ctx.lineTo(-30,40);ctx.lineTo(30,40);ctx.lineTo(25,-48);ctx.closePath();ctx.fill();
+    // 手臂
+    ctx.beginPath();ctx.moveTo(-25,-40);ctx.lineTo(-40,10);ctx.lineTo(-35,15);ctx.lineTo(-22,-35);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(25,-40);ctx.lineTo(40,10);ctx.lineTo(35,15);ctx.lineTo(22,-35);ctx.closePath();ctx.fill();
+    // 脸
+    if(!silhouette){
+        ctx.fillStyle='#d4a873';
+        ctx.beginPath();ctx.arc(0,-65,16,0,Math.PI*2);ctx.fill();
+        // 眼睛
+        ctx.fillStyle='#2a1a0a';
+        ctx.beginPath();ctx.arc(-6,-67,2,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(6,-67,2,0,Math.PI*2);ctx.fill();
+        // 笑容
+        ctx.beginPath();ctx.arc(0,-60,5,0.1,Math.PI-0.1);ctx.strokeStyle='#8a5a3a';ctx.lineWidth=1.5;ctx.stroke();
+        // 胡子
+        ctx.beginPath();ctx.moveTo(-8,-55);ctx.quadraticCurveTo(0,-50,8,-55);
+        ctx.quadraticCurveTo(12,-48,0,-45);ctx.quadraticCurveTo(-12,-48,-8,-55);ctx.closePath();
+        ctx.fillStyle='#aaa';ctx.fill();
+    }
+    ctx.restore();
+}
+function drawProgressRing(x,y,r,pct){
+    ctx.save();
+    // 背景环
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(100,80,50,0.3)';ctx.lineWidth=6;ctx.stroke();
+    // 进度环
+    ctx.beginPath();ctx.arc(x,y,r,-Math.PI/2,-Math.PI/2+pct*Math.PI*2);
+    ctx.strokeStyle='#d4a843';ctx.lineWidth=6;ctx.lineCap='round';ctx.stroke();
+    // 百分比文字
+    ctx.fillStyle='#e8d5b0';ctx.font='bold 16px "Noto Serif SC"';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(Math.floor(pct*100)+'%',x,y);
+    ctx.restore();
+}
+function drawObservePanel(text){
+    ctx.save();
+    const px=W*0.5,py=H*0.5;
+    const pw=400,ph=200;
+    // 背景
+    roundRect(px-pw/2,py-ph/2,pw,ph,12);
+    ctx.fillStyle='rgba(40,28,14,0.95)';ctx.fill();
+    ctx.strokeStyle='#8b6914';ctx.lineWidth=2;ctx.stroke();
+    // 文字
+    ctx.fillStyle='#e8d5b0';ctx.font='15px "Noto Serif SC"';ctx.textAlign='center';
+    wrapText(ctx,text,px,py-ph/2+40,pw-40,22);
+    ctx.restore();
+}
+function roundRect(x,y,w,h,r){
+    ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+    ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+function wrapText(ctx,text,x,y,maxW,lineH){
+    const chars=text.split('');
+    let line='';
+    let cy=y;
+    for(let i=0;i<chars.length;i++){
+        const test=line+chars[i];
+        if(ctx.measureText(test).width>maxW){
+            ctx.fillText(line,x,cy);line=chars[i];cy+=lineH;
+        }else{line=test;}
+    }
+    ctx.fillText(line,x,cy);
+}
+function lightenColor(hex,amt){
+    let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    r=Math.min(255,r+amt);g=Math.min(255,g+amt);b=Math.min(255,b+amt);
+    return `rgb(${r},${g},${b})`;
+}
+
+// ==================== 结果评估 ====================
+function showResult(){
+    const total=G.quality.clay+G.quality.refine+G.quality.throw+G.quality.trim+G.quality.paint+G.quality.glaze+G.quality.kiln;
+    const avg=Math.floor(total/7);
+    let grade,gradeName,color,desc;
+    if(avg>=85){grade='甲';gradeName='上品';color='#d4a843';desc=G.nick+'，你天生就是做瓷的料。\n这件瓷器，堪称精品。';}
+    else if(avg>=70){grade='乙';gradeName='良品';color='#a07d1a';desc='做得不错！经过更多练习，\n你的手艺会更精湛。';}
+    else if(avg>=50){grade='丙';gradeName='中品';color='#8b6914';desc='还算及格，制瓷之道，\n需要更多耐心和练习。';}
+    else{grade='丁';gradeName='次品';color='#6b4f1d';desc='制瓷之路漫漫，\n不要气馁，从头再来吧。';}
+    const overlay=document.getElementById('result-overlay');
+    overlay.querySelector('.grade').textContent=grade;
+    overlay.querySelector('.grade').style.color=color;
+    overlay.querySelector('.grade-name').textContent=gradeName;
+    overlay.querySelector('.grade-name').style.color=color;
+    overlay.querySelector('.grade-desc').textContent=desc;
+    overlay.classList.add('show');
+    playSound('reveal');
+}
+
+// ==================== 事件处理 ====================
+canvas.addEventListener('mousedown',e=>{
+    initAudio();
+    const mx=e.clientX,my=e.clientY;
+    G.mouseX=mx;G.mouseY=my;G.mouseDown=true;
+    switch(G.level){
+        case 1:handleLevel1Click(mx,my);break;
+        case 2:handleLevel2Down(mx,my);break;
+        case 3:handleLevel3Down(mx,my);break;
+        case 4:G.mouseDown=true;handleLevel4Move(mx,my);break;
+        case 5:handleLevel5Down(mx,my);break;
+        case 6:handleLevel6Down(mx,my);break;
+        case 7:handleLevel7Down(mx,my);break;
+        case 8:
+            if(!G.opened){G.opened=true;revealProgress=0;playSound('reveal');showDialogue('开窑了！看看你的作品吧...',5000);setTimeout(showResult,6000);}
+            break;
+    }
+});
+canvas.addEventListener('mousemove',e=>{
+    G.mouseX=e.clientX;G.mouseY=e.clientY;
+    switch(G.level){
+        case 3:handleLevel3Move(e.clientX,e.clientY);break;
+        case 4:handleLevel4Move(e.clientX,e.clientY);break;
+        case 5:handleLevel5Move(e.clientX,e.clientY);break;
+        case 6:handleLevel6Move(e.clientX,e.clientY);break;
+        case 7:handleLevel7Move(e.clientX,e.clientY);break;
+    }
+});
+canvas.addEventListener('mouseup',e=>{
+    G.mouseDown=false;
+    switch(G.level){
+        case 2:handleLevel2Up();break;
+        case 3:handleLevel3Up();break;
+        case 5:handleLevel5Up();break;
+        case 6:handleLevel6Up();break;
+        case 7:handleLevel7Up();break;
+    }
+});
+// 键盘方向键控制（第二关用 ↓ 推压 / ↑ 折叠，第三关用 ↑↓←→ 塑形）
+document.addEventListener('keydown',e=>{
+    if(G.level===2){
+        if(e.key==='ArrowDown'||e.key==='Down'){
+            e.preventDefault();
+            G.mouseX=W*0.42;G.mouseY=H*0.5;
+            initAudio();
+            handleLevel2Down(G.mouseX,G.mouseY);
+        }else if(e.key==='ArrowUp'||e.key==='Up'){
+            e.preventDefault();
+            if(G.mouseDown){
+                handleLevel2Up();
+                G.mouseDown=false;
+            }
+        }
+    }else if(G.level===3){
+        if(e.key==='ArrowUp'||e.key==='Up'||e.key==='ArrowDown'||e.key==='Down'||e.key==='ArrowLeft'||e.key==='Left'||e.key==='ArrowRight'||e.key==='Right'){
+            e.preventDefault();
+            const speed=0.012;
+            if(e.key==='ArrowUp'||e.key==='Up'){
+                // 上拉 -> 器壁变高变薄（向外扩）
+                for(let i=4;i<potProfile.length-2;i++){
+                    potProfile[i]=Math.min(55,potProfile[i]+speed*30);
+                }
+                spawnWater(W*0.4+Math.random()*40-20,H*0.55-Math.random()*40,1);
+            }else if(e.key==='ArrowDown'||e.key==='Down'){
+                // 下压 -> 收口（变窄）
+                potProfile[potProfile.length-1]=Math.max(8,potProfile[potProfile.length-1]-speed*40);
+                potProfile[potProfile.length-2]=Math.max(10,potProfile[potProfile.length-2]-speed*20);
+                spawnWater(W*0.4+Math.random()*40-20,H*0.55-Math.random()*40,1);
+            }else if(e.key==='ArrowLeft'||e.key==='Left'){
+                // 整体变细
+                for(let i=0;i<potProfile.length;i++){
+                    potProfile[i]=Math.max(6,potProfile[i]*0.97);
+                }
+                spawnWater(W*0.4,H*0.55-Math.random()*30,1);
+            }else if(e.key==='ArrowRight'||e.key==='Right'){
+                // 整体变宽
+                for(let i=0;i<potProfile.length;i++){
+                    potProfile[i]=Math.min(55,potProfile[i]*1.03);
+                }
+                spawnWater(W*0.4,H*0.55-Math.random()*30,1);
+            }
+            // 平滑处理
+            for(let i=1;i<potProfile.length-1;i++){
+                potProfile[i]=potProfile[i]*0.95+(potProfile[i-1]+potProfile[i+1])*0.025;
+            }
+            // 检查变形
+            const avg=potProfile.reduce((a,b)=>a+b,0)/potProfile.length;
+            const maxDev=Math.max(...potProfile.map(v=>Math.abs(v-avg)));
+            if(maxDev>15)G.deformWarning=Math.min(1,G.deformWarning+0.1);
+        }else if(e.key==='Enter'){
+            e.preventDefault();
+            // 评估品质并自动进入第四关
+            const avg=potProfile.reduce((a,b)=>a+b,0)/potProfile.length;
+            const variance=potProfile.reduce((a,b)=>a+Math.abs(b-avg),0)/potProfile.length;
+            G.quality.throw=Math.max(10,Math.min(100,Math.floor(100-variance*3)));
+            showDialogue(G.quality.throw>70?'好手法！器型匀称。':'还可以，下次注意控制力道。',2500);
+            setTimeout(()=>transitionTo(4),1500);
+        }
+    }
+});
+// 触摸支持
+canvas.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const t=e.touches[0];
+    canvas.dispatchEvent(new MouseEvent('mousedown',{clientX:t.clientX,clientY:t.clientY}));
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    const t=e.touches[0];
+    canvas.dispatchEvent(new MouseEvent('mousemove',{clientX:t.clientX,clientY:t.clientY}));
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+    e.preventDefault();
+    canvas.dispatchEvent(new MouseEvent('mouseup',{}));
+},{passive:false});
+
+// 完成按钮
+document.getElementById('completeBtn').addEventListener('click',()=>{
+    playSound('click');
+    if(G.level<8){
+        transitionTo(G.level+1);
+    }else{
+        transitionTo(8);
+    }
+});
+
+// ==================== 主循环 ====================
+function gameLoop(timestamp){
+    if(!G.lastTime)G.lastTime=timestamp;
+    G.dt=Math.min(0.05,(timestamp-G.lastTime)/1000);
+    G.lastTime=timestamp;
+    G.time+=G.dt;
+    ctx.clearRect(0,0,W,H);
+    // 更新粒子
+    updateParticles(G.waterDrops,G.dt);
+    updateParticles(G.chipParticles,G.dt);
+    // 根据关卡绘制
+    switch(G.level){
+        case 1:drawLevel1();break;
+        case 2:drawLevel2();break;
+        case 3:drawLevel3();break;
+        case 4:drawLevel4();break;
+        case 5:drawLevel5();break;
+        case 6:drawLevel6();break;
+        case 7:drawLevel7();break;
+        case 8:drawLevel8();break;
+    }
+    // 水滴和泥屑
+    G.waterDrops.forEach(p=>{
+        ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+        ctx.fillStyle=`rgba(150,200,220,${p.life*0.5})`;ctx.fill();
+    });
+    G.chipParticles.forEach(p=>{
+        ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+        ctx.fillStyle=`rgba(180,170,140,${p.life})`;
+        ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size);
+        ctx.restore();
+    });
+    requestAnimationFrame(gameLoop);
+}
+
+// ==================== 开始游戏 ====================
+function startGame(){
+    const input=document.getElementById('nickInput');
+    const nick=input.value.trim()||'学徒';
+    G.nick=nick;
+    document.getElementById('nickname-overlay').classList.add('hidden');
+    updateNav();
+    setTimeout(()=>transitionTo(1),1000);
+}
+document.getElementById('nickInput').addEventListener('keydown',e=>{
+    if(e.key==='Enter')startGame();
+});
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

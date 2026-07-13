@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Birthday Galaxy - AI沉浸式生日祝福</title>
+  <style>
+    /* ========== Reset + 基础 ========== */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; overflow:hidden; font-family:'Inter',system-ui,-apple-system,sans-serif; background:#0a0a1a; color:#e2e8f0; -webkit-font-smoothing:antialiased; }
+    #app { position:relative; width:100vw; height:100vh; overflow:hidden; }
+    #bg-canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+    #chapter-container { position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; }
+    #mute-btn { position:fixed; top:20px; right:20px; z-index:9999; background:rgba(255,255,255,0.08); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:20px; width:44px; height:44px; border-radius:50%; cursor:pointer; transition:all 0.3s; }
+    #mute-btn:hover { background:rgba(255,255,255,0.15); transform:scale(1.1); }
+
+    /* ========== Glass morphism ========== */
+    .glass { background:rgba(255,255,255,0.05); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.1); border-radius:24px; box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+    .glass-strong { background:rgba(255,255,255,0.08); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border:1px solid rgba(255,255,255,0.15); border-radius:24px; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
+
+    /* ========== Cosmic Button ========== */
+    .btn-cosmic { position:relative; padding:14px 40px; border-radius:50px; background:linear-gradient(135deg,#4facfe,#a855f7); color:#fff; font-weight:600; font-size:1.1rem; border:none; cursor:pointer; overflow:hidden; transition:all 0.3s ease; box-shadow:0 0 20px rgba(79,172,254,0.4),0 0 40px rgba(168,85,247,0.2); }
+    .btn-cosmic:hover { transform:translateY(-2px) scale(1.02); box-shadow:0 0 30px rgba(79,172,254,0.6),0 0 60px rgba(168,85,247,0.4); }
+
+    /* ========== Glass Input ========== */
+    .glass-input { background:rgba(255,255,255,0.05); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); border-radius:16px; padding:14px 20px; color:#e2e8f0; font-size:1rem; width:100%; outline:none; transition:all 0.3s; font-family:inherit; }
+    .glass-input:focus { border-color:#4facfe; box-shadow:0 0 20px rgba(79,172,254,0.2); background:rgba(255,255,255,0.08); }
+    .glass-input::placeholder { color:rgba(255,255,255,0.3); }
+
+    /* ========== Page Transitions ========== */
+    .chapter-enter { animation: chapterIn 0.8s cubic-bezier(0.16,1,0.3,1) forwards; }
+    @keyframes chapterIn { from { opacity:0; transform:scale(0.95) translateY(20px); filter:blur(10px); } to { opacity:1; transform:scale(1) translateY(0); filter:blur(0); } }
+    .chapter-exit { animation: chapterOut 0.5s cubic-bezier(0.55,0,1,0.45) forwards; }
+    @keyframes chapterOut { from { opacity:1; transform:scale(1); } to { opacity:0; transform:scale(1.05); filter:blur(10px); } }
+
+    /* ========== 工具类 ========== */
+    .fade-in { animation: fadeIn 0.6s ease forwards; }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .fade-in-up { animation: fadeInUp 0.6s ease forwards; }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    .text-gradient { background:linear-gradient(135deg,#4facfe,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .text-glow { text-shadow:0 0 20px rgba(79,172,254,0.5),0 0 40px rgba(168,85,247,0.3); }
+    .cursor-blink::after { content:'|'; animation:blink 1s step-end infinite; color:#4facfe; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .hidden { display:none!important; }
+    .text-center { text-align:center; }
+    .flex-center { display:flex; align-items:center; justify-content:center; flex-direction:column; }
+    .w-full { width:100%; }
+    .mt-4 { margin-top:1rem; }
+    .mt-6 { margin-top:1.5rem; }
+    .mt-8 { margin-top:2rem; }
+    .mb-4 { margin-bottom:1rem; }
+    .p-6 { padding:1.5rem; }
+    .p-8 { padding:2rem; }
+    .overflow-y-auto { overflow-y:auto; }
+    .max-h-60vh { max-height:60vh; }
+    .gap-4 { gap:1rem; }
+    .gap-2 { gap:0.5rem; }
+    .text-sm { font-size:0.875rem; }
+    .text-lg { font-size:1.125rem; }
+    .text-xl { font-size:1.25rem; }
+    .text-2xl { font-size:1.5rem; }
+    .text-3xl { font-size:1.875rem; }
+    .text-4xl { font-size:2.25rem; }
+    .font-bold { font-weight:700; }
+    .opacity-70 { opacity:0.7; }
+    .opacity-50 { opacity:0.5; }
+    .rounded-2xl { border-radius:1rem; }
+
+    /* ========== 主题 CSS 变量 ========== */
+    .theme-starry { --tp:#4facfe; --ts:#a855f7; }
+    .theme-sakura { --tp:#f472b6; --ts:#fb7185; }
+    .theme-candy  { --tp:#fb923c; --ts:#f472b6; }
+    .theme-ocean  { --tp:#22d3ee; --ts:#3b82f6; }
+    .theme-forest { --tp:#34d399; --ts:#22c55e; }
+    .theme-castle { --tp:#c084fc; --ts:#e879f9; }
+    .theme-aurora { --tp:#a78bfa; --ts:#34d399; }
+    .theme-chinese { --tp:#ef4444; --ts:#fbbf24; }
+    .theme-tech   { --tp:#06b6d4; --ts:#8b5cf6; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="bg-canvas"></canvas>
+    <div id="chapter-container"></div>
+    <button id="mute-btn">🔊</button>
+  </div>
+  <script>
+    // ================================================================
+    //  Birthday Galaxy — 第一部分
+    //  包含：AudioManager、StarField、App 状态机、
+    //        renderWelcome、renderOpening、renderStarGazing、generateFortune
+    // ================================================================
+
+    // ======================== 全局引用 ========================
+    let starField = null; // 背景星空实例，在 App.init() 中初始化
+
+    // ======================== AudioManager ========================
+    class AudioManager {
+      constructor() {
+        this.ctx = null;
+        this.master = null;
+        this.bgmGain = null;
+        this.sfxGain = null;
+        this.bgmNodes = [];
+        this.bgmInterval = null;
+        this.playing = false;
+        this.muted = false;
+      }
+
+      init() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = 0.7;
+        this.master.connect(this.ctx.destination);
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.gain.value = 0;
+        this.bgmGain.connect(this.master);
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.5;
+        this.sfxGain.connect(this.master);
+      }
+
+      startBgm(fadeIn) {
+        fadeIn = fadeIn || 3;
+        if (!this.ctx || !this.bgmGain || this.playing) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.playing = true;
+
+        // Drone pad
+        var padFreqs = [130.81, 196.0, 261.63, 329.63];
+        for (var fi = 0; fi < padFreqs.length; fi++) {
+          (function(freq) {
+            var o = this.ctx.createOscillator();
+            o.type = 'sine';
+            o.frequency.value = freq;
+            var g = this.ctx.createGain();
+            g.gain.value = 0.04;
+            var fl = this.ctx.createBiquadFilter();
+            fl.type = 'lowpass';
+            fl.frequency.value = 800;
+            o.connect(fl);
+            fl.connect(g);
+            g.connect(this.bgmGain);
+            o.start();
+            this.bgmNodes.push(o);
+          }).call(this, padFreqs[fi]);
+        }
+
+        // Shimmer
+        var s = this.ctx.createOscillator();
+        s.type = 'sine';
+        s.frequency.value = 523.25;
+        var sg = this.ctx.createGain();
+        sg.gain.value = 0.008;
+        s.connect(sg);
+        sg.connect(this.bgmGain);
+        s.start();
+        this.bgmNodes.push(s);
+
+        // Arpeggio
+        var notes = [261.63, 329.63, 392.0, 523.25, 392.0, 329.63];
+        var arpIdx = 0;
+        var self = this;
+        this.bgmInterval = setInterval(function() {
+          if (!self.ctx || !self.bgmGain || !self.playing) return;
+          var o = self.ctx.createOscillator();
+          o.type = 'sine';
+          o.frequency.value = notes[arpIdx % notes.length];
+          var g = self.ctx.createGain();
+          g.gain.value = 0;
+          var now = self.ctx.currentTime;
+          g.gain.linearRampToValueAtTime(0.03, now + 0.3);
+          g.gain.linearRampToValueAtTime(0, now + 2.5);
+          o.connect(g);
+          g.connect(self.bgmGain);
+          o.start();
+          o.stop(now + 3);
+          arpIdx++;
+        }, 3000);
+
+        this.bgmGain.gain.linearRampToValueAtTime(1, this.ctx.currentTime + fadeIn);
+      }
+
+      intensifyBgm() {
+        if (!this.ctx || !this.bgmGain) return;
+        this.bgmGain.gain.linearRampToValueAtTime(1.8, this.ctx.currentTime + 2);
+      }
+
+      softenBgm() {
+        if (!this.ctx || !this.bgmGain) return;
+        this.bgmGain.gain.linearRampToValueAtTime(0.6, this.ctx.currentTime + 2);
+      }
+
+      stopBgm(fadeOut) {
+        fadeOut = fadeOut || 2;
+        if (!this.ctx || !this.bgmGain || !this.playing) return;
+        this.playing = false;
+        this.bgmGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + fadeOut);
+        var nodes = this.bgmNodes;
+        var interval = this.bgmInterval;
+        var ctx = this.ctx;
+        setTimeout(function() {
+          for (var i = 0; i < nodes.length; i++) {
+            try { nodes[i].stop(); } catch(e) {}
+          }
+          if (interval) { clearInterval(interval); }
+        }, fadeOut * 1000 + 500);
+        this.bgmNodes = [];
+        this.bgmInterval = null;
+      }
+
+      playNote(freq, type, dur, vol, atk, rel, filterF) {
+        if (!this.ctx || !this.sfxGain || this.muted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        vol = vol || 0.3;
+        atk = atk || 0.05;
+        rel = rel || 0.3;
+        filterF = filterF || 3000;
+        var t = this.ctx.currentTime;
+        var o = this.ctx.createOscillator();
+        o.type = type;
+        o.frequency.value = freq;
+        var g = this.ctx.createGain();
+        g.gain.value = 0;
+        g.gain.linearRampToValueAtTime(vol, t + atk);
+        g.gain.linearRampToValueAtTime(0, t + dur);
+        var f = this.ctx.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.value = filterF;
+        o.connect(f);
+        f.connect(g);
+        g.connect(this.sfxGain);
+        o.start(t);
+        o.stop(t + dur + 0.1);
+      }
+
+      playNoteAt(freq, type, start, dur, vol, atk, rel, filterF) {
+        if (!this.ctx || !this.sfxGain || this.muted) return;
+        vol = vol || 0.3;
+        atk = atk || 0.05;
+        rel = rel || 0.3;
+        filterF = filterF || 3000;
+        var o = this.ctx.createOscillator();
+        o.type = type;
+        o.frequency.value = freq;
+        var g = this.ctx.createGain();
+        g.gain.setValueAtTime(0, start);
+        g.gain.linearRampToValueAtTime(vol, start + atk);
+        g.gain.setValueAtTime(vol, start + dur - rel);
+        g.gain.linearRampToValueAtTime(0, start + dur);
+        var f = this.ctx.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.value = filterF;
+        o.connect(f);
+        f.connect(g);
+        g.connect(this.sfxGain);
+        o.start(start);
+        o.stop(start + dur + 0.05);
+      }
+
+      starAppear() {
+        this.playNote(880, 'sine', 1.5, 0.15, 0.02, 1.2, 4000);
+        this.playNote(1318.5, 'sine', 1.2, 0.08, 0.05, 1.0, 5000);
+      }
+
+      starFormName() {
+        var freqs = [523.25, 659.25, 783.99, 1046.5];
+        var self = this;
+        for (var i = 0; i < freqs.length; i++) {
+          (function(f, delay) {
+            setTimeout(function() { self.playNote(f, 'sine', 2, 0.12, 0.03, 1.5, 3500); }, delay);
+          })(freqs[i], i * 150);
+        }
+      }
+
+      meteorShoot() {
+        if (!this.ctx || !this.sfxGain || this.muted) return;
+        var t = this.ctx.currentTime;
+        var o = this.ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(2000, t);
+        o.frequency.exponentialRampToValueAtTime(200, t + 0.8);
+        var g = this.ctx.createGain();
+        g.gain.value = 0.08;
+        g.gain.linearRampToValueAtTime(0, t + 0.8);
+        o.connect(g);
+        g.connect(this.sfxGain);
+        o.start(t);
+        o.stop(t + 1);
+      }
+
+      typewriterClick() {
+        this.playNote(1200, 'square', 0.05, 0.04, 0.005, 0.04, 2000);
+      }
+
+      giftOpen() {
+        this.playNote(523.25, 'sine', 1.5, 0.1, 0.02, 1.2, 3000);
+        this.playNote(659.25, 'sine', 1.5, 0.1, 0.02, 1.2, 3000);
+        this.playNote(783.99, 'sine', 1.5, 0.1, 0.02, 1.2, 3000);
+        this.playNote(1046.5, 'sine', 1.5, 0.1, 0.02, 1.2, 3000);
+      }
+
+      candleLight() {
+        this.playNote(440, 'sine', 0.8, 0.1, 0.02, 0.6, 1500);
+        this.playNote(554.37, 'sine', 0.6, 0.06, 0.05, 0.4, 1200);
+      }
+
+      candleBlow() {
+        this.playNote(200, 'sine', 0.6, 0.08, 0.01, 0.5, 800);
+      }
+
+      playBirthdaySong() {
+        var melody = [
+          [262,0.3],[262,0.1],[294,0.4],[262,0.4],[349,0.4],[330,0.8],
+          [262,0.3],[262,0.1],[294,0.4],[262,0.4],[392,0.4],[349,0.8],
+          [262,0.3],[262,0.1],[523,0.4],[440,0.4],[349,0.4],[330,0.4],[294,0.8],
+          [466,0.3],[466,0.1],[440,0.4],[349,0.4],[392,0.4],[349,0.8]
+        ];
+        var t = this.ctx.currentTime + 0.1;
+        var self = this;
+        for (var i = 0; i < melody.length; i++) {
+          (function(m, startT) {
+            self.playNoteAt(m[0], 'triangle', startT, m[1] * 0.9, 0.12, 0.02, m[1] * 0.5, 2000);
+          })(melody[i], t);
+          t += melody[i][1];
+        }
+      }
+
+      wishCollect() {
+        this.playNote(784, 'sine', 0.4, 0.15, 0.01, 0.3, 5000);
+        var self = this;
+        setTimeout(function() { self.playNote(1047, 'sine', 0.5, 0.1, 0.01, 0.4, 6000); }, 80);
+      }
+
+      cardFlip() {
+        this.playNote(600, 'triangle', 0.15, 0.08, 0.01, 0.1, 2000);
+        var self = this;
+        setTimeout(function() { self.playNote(800, 'triangle', 0.15, 0.06, 0.01, 0.1, 2000); }, 60);
+      }
+
+      firework() {
+        this.playNote(80, 'sine', 0.6, 0.12, 0.01, 0.5, 300);
+        this.playNote(1500, 'sawtooth', 0.15, 0.04, 0.01, 0.1, 1000);
+      }
+
+      sceneTransition() {
+        this.playNote(440, 'sine', 1.5, 0.08, 0.3, 1.2, 1000);
+        this.playNote(554, 'sine', 1.2, 0.05, 0.3, 1.0, 800);
+      }
+
+      setMuted(m) {
+        this.muted = m;
+        if (this.master) {
+          this.master.gain.linearRampToValueAtTime(m ? 0 : 0.7, this.ctx.currentTime + 0.3);
+        }
+      }
+    }
+
+    // ======================== StarField (Canvas 背景) ========================
+    class StarField {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.galaxyStars = [];
+        this.bgStars = [];
+        this.meteors = [];
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.theme = 'starry';
+        this.resize();
+        this.initStars();
+        var self = this;
+        window.addEventListener('resize', function() { self.resize(); self.initStars(); });
+        document.addEventListener('mousemove', function(e) { self.mouseX = e.clientX; self.mouseY = e.clientY; });
+        this.animate();
+      }
+
+      getThemeColors() {
+        var colors = {
+          starry: ['#4facfe','#a855f7'],
+          sakura: ['#f472b6','#fb7185'],
+          candy:  ['#fb923c','#f472b6'],
+          ocean:  ['#22d3ee','#3b82f6'],
+          forest: ['#34d399','#22c55e'],
+          castle: ['#c084fc','#e879f9'],
+          aurora: ['#a78bfa','#34d399'],
+          chinese:['#ef4444','#fbbf24'],
+          tech:   ['#06b6d4','#8b5cf6']
+        };
+        return colors[this.theme] || colors.starry;
+      }
+
+      setTheme(t) { this.theme = t; }
+
+      resize() {
+        var dpr = window.devicePixelRatio || 1;
+        this.canvas.width = window.innerWidth * dpr;
+        this.canvas.height = window.innerHeight * dpr;
+        this.canvas.style.width = window.innerWidth + 'px';
+        this.canvas.style.height = window.innerHeight + 'px';
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.W = window.innerWidth;
+        this.H = window.innerHeight;
+      }
+
+      initStars() {
+        this.galaxyStars = [];
+        this.bgStars = [];
+        for (var i = 0; i < 600; i++) {
+          var angle = Math.random() * Math.PI * 2;
+          var dist = Math.random() * Math.min(this.W, this.H) * 0.4;
+          this.galaxyStars.push({
+            x: this.W / 2 + Math.cos(angle) * dist,
+            y: this.H / 2 + Math.sin(angle) * dist * 0.6,
+            size: Math.random() * 1.5 + 0.5,
+            opacity: Math.random() * 0.5 + 0.3,
+            twinkleSpeed: Math.random() * 0.02 + 0.01,
+            twinkleOffset: Math.random() * Math.PI * 2,
+            angle: angle,
+            dist: dist
+          });
+        }
+        for (var j = 0; j < 400; j++) {
+          this.bgStars.push({
+            x: Math.random() * this.W,
+            y: Math.random() * this.H,
+            size: Math.random() * 2 + 0.5,
+            opacity: Math.random() * 0.5 + 0.2,
+            twinkleSpeed: Math.random() * 0.03 + 0.01,
+            twinkleOffset: Math.random() * Math.PI * 2,
+            depth: Math.random() * 20
+          });
+        }
+      }
+
+      hexToRgb(hex) {
+        var r = parseInt(hex.slice(1, 3), 16);
+        var g = parseInt(hex.slice(3, 5), 16);
+        var b = parseInt(hex.slice(5, 7), 16);
+        return r + ',' + g + ',' + b;
+      }
+
+      animate() {
+        var ctx = this.ctx;
+        ctx.clearRect(0, 0, this.W, this.H);
+        var themeC = this.getThemeColors();
+        var c1 = themeC[0];
+        var c2 = themeC[1];
+        var time = performance.now() * 0.001;
+        var self = this;
+
+        // Galaxy rotation
+        ctx.save();
+        ctx.translate(this.W / 2, this.H / 2);
+        ctx.rotate(time * 0.02);
+        ctx.translate(-this.W / 2, -this.H / 2);
+        var c1rgb = self.hexToRgb(c1);
+        for (var gi = 0; gi < self.galaxyStars.length; gi++) {
+          var gs = self.galaxyStars[gi];
+          gs.opacity = 0.3 + Math.sin(time * gs.twinkleSpeed * 10 + gs.twinkleOffset) * 0.3;
+          ctx.beginPath();
+          ctx.arc(gs.x, gs.y, gs.size, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(' + c1rgb + ',' + gs.opacity + ')';
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Background stars with mouse parallax
+        var halfW = self.W / 2;
+        var halfH = self.H / 2;
+        for (var bi = 0; bi < self.bgStars.length; bi++) {
+          var bs = self.bgStars[bi];
+          var px = bs.x + (self.mouseX - halfW) * bs.depth * 0.001;
+          var py = bs.y + (self.mouseY - halfH) * bs.depth * 0.001;
+          bs.opacity = 0.2 + Math.sin(time * bs.twinkleSpeed * 10 + bs.twinkleOffset) * 0.4;
+          ctx.beginPath();
+          ctx.arc(px, py, bs.size, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,' + bs.opacity + ')';
+          ctx.fill();
+        }
+
+        // Meteors
+        if (Math.random() < 0.005) {
+          self.meteors.push({
+            x: Math.random() * self.W * 0.8,
+            y: 0,
+            vx: -3 - Math.random() * 3,
+            vy: 3 + Math.random() * 3,
+            life: 1,
+            maxLife: 60 + Math.random() * 40
+          });
+        }
+        var aliveMeteors = [];
+        for (var mi = 0; mi < self.meteors.length; mi++) {
+          var m = self.meteors[mi];
+          m.x += m.vx;
+          m.y += m.vy;
+          m.life--;
+          var ratio = m.life / m.maxLife;
+          var grad = ctx.createLinearGradient(m.x, m.y, m.x - m.vx * 8, m.y - m.vy * 8);
+          grad.addColorStop(0, 'rgba(255,255,255,' + ratio + ')');
+          grad.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.beginPath();
+          ctx.moveTo(m.x, m.y);
+          ctx.lineTo(m.x - m.vx * 8, m.y - m.vy * 8);
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(m.x, m.y, 2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,' + ratio + ')';
+          ctx.fill();
+          if (m.life > 0) aliveMeteors.push(m);
+        }
+        self.meteors = aliveMeteors;
+
+        requestAnimationFrame(function() { self.animate(); });
+      }
+    }
+
+    // ======================== generateFortune ========================
+    function generateFortune() {
+      var data = App.birthdayData || {};
+      var name = data.name || '寿星';
+      var interests = data.interests || '事物';
+      var color = data.favoriteColor || '蓝色';
+      var animal = data.favoriteAnimal || '小猫';
+      var age = data.age || 18;
+      return [
+        '亲爱的' + name + '，今日星象显示你将迎来意想不到的好运。你热爱的' + interests + '将为你带来新的灵感。',
+        '宇宙为' + name + '准备了一份特别的礼物——在' + color + '的光芒指引下，你会找到心中答案。',
+        '今日幸运数字：' + age + '。' + animal + '般的直觉将引导你走向成功。',
+        '银河传来消息：' + name + '的梦想正在靠近，每一步都算数。',
+        '星光预示：你将与美好不期而遇。保持对' + interests + '的热爱。'
+      ];
+    }
+
+    // ======================== 应用状态 ========================
+    var App = {
+      currentChapter: 'welcome',
+      birthdayData: null,
+      aiContent: null,
+      gameState: { giftOpened: false, candlesLit: 0, wishesCollected: [], luckyCardDrawn: false },
+      gameStep: 0,
+      audio: null,
+      muted: false,
+
+      init: function() {
+        this.audio = new AudioManager();
+        starField = new StarField(document.getElementById('bg-canvas'));
+        this.renderChapter();
+        var self = this;
+        document.getElementById('mute-btn').onclick = function() {
+          self.muted = !self.muted;
+          self.audio.setMuted(self.muted);
+          document.getElementById('mute-btn').textContent = self.muted ? '\u{1F507}' : '\u{1F50A}';
+        };
+      },
+
+      goTo: function(chapter) {
+        var container = document.getElementById('chapter-container');
+        container.classList.add('chapter-exit');
+        var self = this;
+        setTimeout(function() {
+          container.classList.remove('chapter-exit');
+          self.currentChapter = chapter;
+          self.renderChapter();
+        }, 500);
+      },
+
+      renderChapter: function() {
+        var container = document.getElementById('chapter-container');
+        var chapters = {
+          'welcome': function() { renderWelcome(container); },
+          'opening': function() { renderOpening(container); },
+          'stargazing': function() { renderStarGazing(container); },
+          'games': function() { renderGames(container); },
+          'ai-gift': function() { renderAIGift(container); },
+          'birthday-tree': function() { renderBirthdayTree(container); },
+          'climax': function() { renderClimax(container); },
+          'universe': function() { renderUniverse(container); },
+          'share': function() { renderSharePage(container); }
+        };
+        var fn = chapters[this.currentChapter];
+        if (fn) fn();
+        container.classList.add('chapter-enter');
+      }
+    };
+
+    // ======================== renderWelcome ========================
+    function renderWelcome(container) {
+      var themes = [
+        { id: 'starry',  name: '星空',  emoji: '\u{1F30C}' },
+        { id: 'sakura',  name: '樱花',  emoji: '\u{1F338}' },
+        { id: 'candy',   name: '糖果',  emoji: '\u{1F36C}' },
+        { id: 'ocean',   name: '海洋',  emoji: '\u{1F30A}' },
+        { id: 'forest',  name: '森林',  emoji: '\u{1F332}' },
+        { id: 'castle',  name: '城堡',  emoji: '\u{1F3F0}' },
+        { id: 'aurora',  name: '极光',  emoji: '\u2728' },
+        { id: 'chinese', name: '中国风', emoji: '\u{1F3EE}' },
+        { id: 'tech',    name: '科技风', emoji: '\u{1F52E}' }
+      ];
+
+      var selectedGender = '';
+      var selectedTheme = 'starry';
+
+      // 构建 theme cards HTML
+      var themeCardsHtml = '';
+      for (var ti = 0; ti < themes.length; ti++) {
+        var t = themes[ti];
+        var borderStyle = (selectedTheme === t.id)
+          ? 'border:2px solid var(--tp);box-shadow:0 0 15px rgba(79,172,254,0.4);'
+          : 'border:2px solid transparent;';
+        themeCardsHtml += '<div class="theme-card glass" data-theme="' + t.id + '" style="padding:10px;text-align:center;cursor:pointer;transition:all 0.3s;' + borderStyle + '"><div style="font-size:24px;">' + t.emoji + '</div><div class="text-sm">' + t.name + '</div></div>';
+      }
+
+      container.innerHTML = ''
+        + '<div class="flex-center" style="height:100%;padding:20px;">'
+        + '  <div style="max-width:600px;width:100%;text-align:center;">'
+        + '    <h1 class="text-4xl font-bold text-gradient fade-in" style="animation-delay:0s">Birthday Galaxy</h1>'
+        + '    <p class="text-lg opacity-70 fade-in" style="margin-top:12px;animation-delay:0.3s">今天，我们一起创造一场独一无二的生日仪式。</p>'
+        + '    <div class="glass-strong fade-in" style="margin-top:30px;padding:30px;max-height:60vh;overflow-y:auto;animation-delay:0.6s">'
+        + '      <div style="display:grid;gap:16px;text-align:left;">'
+        + '        <input id="inp-name" class="glass-input" placeholder="姓名（必填）">'
+        + '        <input id="inp-age" class="glass-input" type="number" placeholder="年龄（必填）">'
+        + '        <div style="display:flex;gap:8px;flex-wrap:wrap;">'
+        + '          <button class="gender-btn glass-input" data-g="male" style="flex:1;cursor:pointer;text-align:center;">男</button>'
+        + '          <button class="gender-btn glass-input" data-g="female" style="flex:1;cursor:pointer;text-align:center;">女</button>'
+        + '          <button class="gender-btn glass-input" data-g="other" style="flex:1;cursor:pointer;text-align:center;">其他</button>'
+        + '        </div>'
+        + '        <input id="inp-interests" class="glass-input" placeholder="兴趣（旅行、动漫、摄影、音乐…）">'
+        + '        <input id="inp-color" class="glass-input" placeholder="喜欢颜色">'
+        + '        <input id="inp-animal" class="glass-input" placeholder="最喜欢的动物">'
+        + '        <input id="inp-dream" class="glass-input" placeholder="梦想">'
+        + '        <textarea id="inp-blessing" class="glass-input" rows="2" placeholder="想送给自己的一句话" style="resize:none;"></textarea>'
+        + '      </div>'
+        + '      <div style="margin-top:20px;">'
+        + '        <p class="text-sm opacity-70" style="margin-bottom:10px;">选择主题</p>'
+        + '        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" class="theme-grid">'
+        +            themeCardsHtml
+        + '        </div>'
+        + '      </div>'
+        + '      <div id="form-errors" style="margin-top:10px;color:#f87171;font-size:0.85rem;"></div>'
+        + '    </div>'
+        + '    <button id="btn-start" class="btn-cosmic fade-in" style="margin-top:24px;animation-delay:0.9s">开始生日旅行 \u2728</button>'
+        + '  </div>'
+        + '</div>';
+
+      // 性别按钮
+      var genderBtns = container.querySelectorAll('.gender-btn');
+      for (var gbi = 0; gbi < genderBtns.length; gbi++) {
+        (function(btn) {
+          btn.addEventListener('click', function() {
+            var allBtns = container.querySelectorAll('.gender-btn');
+            for (var k = 0; k < allBtns.length; k++) {
+              allBtns[k].style.borderColor = 'rgba(255,255,255,0.1)';
+              allBtns[k].style.boxShadow = 'none';
+            }
+            btn.style.borderColor = '#4facfe';
+            btn.style.boxShadow = '0 0 15px rgba(79,172,254,0.3)';
+            selectedGender = btn.getAttribute('data-g');
+          });
+        })(genderBtns[gbi]);
+      }
+
+      // 主题卡片
+      var themeCards = container.querySelectorAll('.theme-card');
+      for (var tci = 0; tci < themeCards.length; tci++) {
+        (function(card) {
+          card.addEventListener('click', function() {
+            var allCards = container.querySelectorAll('.theme-card');
+            for (var k = 0; k < allCards.length; k++) {
+              allCards[k].style.borderColor = 'transparent';
+              allCards[k].style.boxShadow = 'none';
+            }
+            card.style.borderColor = 'var(--tp)';
+            card.style.boxShadow = '0 0 15px rgba(79,172,254,0.4)';
+            selectedTheme = card.getAttribute('data-theme');
+          });
+        })(themeCards[tci]);
+      }
+
+      // 开始按钮
+      document.getElementById('btn-start').addEventListener('click', function() {
+        var name = document.getElementById('inp-name').value.trim();
+        var age = parseInt(document.getElementById('inp-age').value);
+        var errors = [];
+        if (!name) errors.push('请输入姓名');
+        if (!age || age <= 0) errors.push('请输入有效年龄');
+        if (errors.length) {
+          document.getElementById('form-errors').innerHTML = errors.join('<br>');
+          return;
+        }
+
+        App.birthdayData = {
+          name: name,
+          age: age,
+          gender: selectedGender || 'other',
+          interests: document.getElementById('inp-interests').value.trim(),
+          favoriteColor: document.getElementById('inp-color').value.trim(),
+          favoriteAnimal: document.getElementById('inp-animal').value.trim(),
+          dream: document.getElementById('inp-dream').value.trim(),
+          blessing: document.getElementById('inp-blessing').value.trim(),
+          theme: selectedTheme
+        };
+
+        if (starField) starField.setTheme(selectedTheme);
+        App.audio.init();
+        App.audio.startBgm(3);
+        App.goTo('opening');
+      });
+    }
+
+    // ======================== renderOpening ========================
+    function renderOpening(container) {
+      container.innerHTML = '<canvas id="opening-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>'
+        + '<div id="opening-text" style="position:absolute;bottom:15%;left:0;right:0;text-align:center;padding:0 20px;"></div>';
+
+      var canvas = document.getElementById('opening-canvas');
+      var ctx = canvas.getContext('2d');
+      var W = window.innerWidth;
+      var H = window.innerHeight;
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      var name = App.birthdayData.name;
+      var age = App.birthdayData.age;
+      var stars = [];
+      var phase = 'dark';
+      var nameTargets = [];
+      var startTime = performance.now();
+      var animId;
+
+      // 采样名字像素点
+      function sampleName() {
+        var offscreen = document.createElement('canvas');
+        var fontSize = Math.min(W * 0.15, 80);
+        offscreen.width = W;
+        offscreen.height = 100;
+        var offCtx = offscreen.getContext('2d');
+        offCtx.font = 'bold ' + fontSize + 'px Inter, system-ui, sans-serif';
+        offCtx.fillStyle = 'white';
+        offCtx.textAlign = 'center';
+        offCtx.fillText(name, W / 2, 70);
+        var imgData = offCtx.getImageData(0, 0, W, 100);
+        var points = [];
+        for (var x = 0; x < W; x += 4) {
+          for (var y = 0; y < 100; y += 4) {
+            if (imgData.data[(y * W + x) * 4 + 3] > 128) {
+              points.push({ x: x, y: y + H / 2 - 50 });
+            }
+          }
+        }
+        // Shuffle and limit
+        for (var i = points.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = points[i];
+          points[i] = points[j];
+          points[j] = tmp;
+        }
+        return points.slice(0, 300);
+      }
+      nameTargets = sampleName();
+
+      function draw() {
+        var elapsed = performance.now() - startTime;
+        ctx.clearRect(0, 0, W, H);
+
+        if (elapsed < 3000) {
+          // Phase 1: Stars appearing
+          if (stars.length < 300 && Math.random() < 0.3) {
+            stars.push({
+              x: Math.random() * W,
+              y: Math.random() * H,
+              size: Math.random() * 2 + 1,
+              opacity: 0,
+              targetOpacity: Math.random() * 0.5 + 0.5
+            });
+          }
+          for (var i = 0; i < stars.length; i++) {
+            stars[i].opacity = Math.min(stars[i].targetOpacity, stars[i].opacity + 0.02);
+          }
+        } else if (elapsed < 6000) {
+          // Phase 2: Stars form name
+          if (elapsed >= 3000 && phase === 'dark') {
+            phase = 'forming';
+            App.audio.starAppear();
+            for (var fi = 0; fi < nameTargets.length; fi++) {
+              var nt = nameTargets[fi];
+              stars.push({
+                x: Math.random() * W,
+                y: Math.random() * H,
+                size: 2,
+                opacity: 0.8,
+                targetX: nt.x,
+                targetY: nt.y,
+                isName: true
+              });
+            }
+          }
+          if (elapsed >= 5500 && phase === 'forming') {
+            phase = 'formed';
+            App.audio.starFormName();
+          }
+          for (var si = 0; si < stars.length; si++) {
+            var s = stars[si];
+            if (s.isName && s.targetX !== undefined) {
+              s.x += (s.targetX - s.x) * 0.05;
+              s.y += (s.targetY - s.y) * 0.05;
+              s.opacity = 0.5 + Math.sin(elapsed * 0.005) * 0.3;
+            }
+          }
+        } else if (elapsed < 9000) {
+          // Phase 3: Name disperses + meteor
+          if (phase === 'formed') {
+            phase = 'meteor';
+            App.audio.meteorShoot();
+          }
+          // Disperse name stars
+          var remaining = [];
+          for (var di = 0; di < stars.length; di++) {
+            var ds = stars[di];
+            if (ds.isName) {
+              ds.opacity -= 0.005;
+              if (ds.opacity > 0) remaining.push(ds);
+            } else {
+              remaining.push(ds);
+            }
+          }
+          stars = remaining;
+          // Draw meteor
+          if (elapsed < 8000) {
+            var mx = W * 0.8 - (elapsed - 6000) * 0.3;
+            var my = (elapsed - 6000) * 0.3;
+            var mGrad = ctx.createLinearGradient(mx, my, mx + 100, my - 100);
+            mGrad.addColorStop(0, 'rgba(255,255,255,0.8)');
+            mGrad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.beginPath();
+            ctx.moveTo(mx, my);
+            ctx.lineTo(mx + 100, my - 100);
+            ctx.strokeStyle = mGrad;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        } else if (elapsed < 15000) {
+          // Phase 4: Typewriter text
+          if (phase === 'meteor') {
+            phase = 'typewriter';
+          }
+        }
+
+        // Draw stars
+        for (var ri = 0; ri < stars.length; ri++) {
+          var rs = stars[ri];
+          var op = Math.max(0, rs.opacity);
+          ctx.beginPath();
+          ctx.arc(rs.x, rs.y, rs.size, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,' + op + ')';
+          ctx.fill();
+        }
+
+        // Typewriter text
+        if (phase === 'typewriter' || phase === 'done') {
+          var texts = [
+            '今天，是一个特别的日子\u2026\u2026',
+            age + '年前，',
+            '宇宙因为你的诞生，多了一颗闪耀的星星。'
+          ];
+          var elapsed_text = elapsed - 9000;
+          var charsPerSec = 4;
+          var totalChars = Math.floor(elapsed_text * charsPerSec / 1000);
+          var charCount = 0;
+          var html = '';
+          for (var ti = 0; ti < texts.length; ti++) {
+            var txt = texts[ti];
+            var showLen = Math.min(txt.length, totalChars - charCount);
+            var show = txt.substring(0, showLen);
+            charCount += txt.length + 2;
+            if (totalChars > charCount - txt.length - 2) {
+              html += '<p class="text-xl" style="margin:8px 0;text-shadow:0 0 20px rgba(79,172,254,0.5);">' + show;
+              if (show.length < txt.length) {
+                html += '<span class="cursor-blink"></span>';
+              }
+              html += '</p>';
+            }
+          }
+          document.getElementById('opening-text').innerHTML = html;
+        }
+
+        if (elapsed >= 15000) {
+          App.goTo('stargazing');
+          return;
+        }
+
+        animId = requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // ======================== renderStarGazing ========================
+    function renderStarGazing(container) {
+      container.innerHTML = '<canvas id="stargazing-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>'
+        + '<div id="fortune-card" class="hidden" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;"></div>'
+        + '<div id="sg-continue" class="hidden" style="position:absolute;bottom:10%;left:0;right:0;text-align:center;"></div>';
+
+      var canvas = document.getElementById('stargazing-canvas');
+      var ctx = canvas.getContext('2d');
+      var W = window.innerWidth;
+      var H = window.innerHeight;
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      var clickableStars = [];
+      var litCount = 0;
+      var planetVisible = false;
+      var animId;
+      var fortuneContent = generateFortune();
+
+      // Create clickable stars
+      for (var i = 0; i < 25; i++) {
+        clickableStars.push({
+          x: Math.random() * W * 0.8 + W * 0.1,
+          y: Math.random() * H * 0.7 + H * 0.1,
+          size: Math.random() * 4 + 4,
+          lit: false,
+          pulse: Math.random() * Math.PI * 2,
+          fortune: fortuneContent[i % fortuneContent.length]
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        var time = performance.now() * 0.001;
+
+        for (var si = 0; si < clickableStars.length; si++) {
+          var s = clickableStars[si];
+          var glow = s.lit ? 1 : 0.3 + Math.sin(time * 2 + s.pulse) * 0.3;
+          // Outer glow
+          if (s.lit) {
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size * 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(79,172,254,' + (glow * 0.15) + ')';
+            ctx.fill();
+          }
+          // Core
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,' + glow + ')';
+          ctx.fill();
+        }
+
+        // Planet
+        if (planetVisible) {
+          var px = W / 2;
+          var py = H / 2;
+          var pr = Math.min(W, H) * 0.08;
+          var pGrad = ctx.createRadialGradient(px - pr * 0.2, py - pr * 0.2, pr * 0.1, px, py, pr);
+          pGrad.addColorStop(0, '#60a5fa');
+          pGrad.addColorStop(0.6, '#3b82f6');
+          pGrad.addColorStop(1, '#1e3a5f');
+          ctx.beginPath();
+          ctx.arc(px, py, pr, 0, Math.PI * 2);
+          ctx.fillStyle = pGrad;
+          ctx.fill();
+          // Glow
+          ctx.beginPath();
+          ctx.arc(px, py, pr * 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(79,172,254,0.1)';
+          ctx.fill();
+        }
+
+        animId = requestAnimationFrame(draw);
+      }
+      draw();
+
+      // Click handler
+      canvas.addEventListener('click', function(e) {
+        var rect = canvas.getBoundingClientRect();
+        var mx = e.clientX - rect.left;
+        var my = e.clientY - rect.top;
+        for (var ci = 0; ci < clickableStars.length; ci++) {
+          var cs = clickableStars[ci];
+          if (!cs.lit && Math.hypot(mx - cs.x, my - cs.y) < cs.size * 2) {
+            cs.lit = true;
+            litCount++;
+            App.audio.starAppear();
+            showFortune(cs.fortune);
+            if (litCount >= 1 && !planetVisible) {
+              planetVisible = true;
+              setTimeout(function() {
+                document.getElementById('sg-continue').classList.remove('hidden');
+                document.getElementById('sg-continue').innerHTML = '<p class="text-sm opacity-70 mb-4">你已点亮了' + litCount + '颗星星</p>'
+                  + '<button class="btn-cosmic" id="sg-btn-continue">继续旅程 \u2192</button>';
+                document.getElementById('sg-btn-continue').addEventListener('click', function() {
+                  cancelAnimationFrame(animId);
+                  App.goTo('games');
+                });
+              }, 3000);
+            }
+            break;
+          }
+        }
+      });
+
+      function showFortune(text) {
+        var card = document.getElementById('fortune-card');
+        card.classList.remove('hidden');
+        card.innerHTML = '<div class="glass-strong" style="padding:30px;max-width:350px;text-align:center;">'
+          + '<h3 class="text-xl font-bold text-gradient mb-4">\u2728 今日大吉上上签 \u2728</h3>'
+          + '<p class="opacity-90" style="line-height:1.8;">' + text + '</p>'
+          + '<button class="mt-4 text-sm opacity-50" style="background:none;border:none;color:#e2e8f0;cursor:pointer;" id="close-fortune">关闭</button>'
+          + '</div>';
+        document.getElementById('close-fortune').addEventListener('click', function() {
+          card.classList.add('hidden');
+        });
+      }
+    }
+
+    // ======================== 启动 ========================
+    window.onload = function() {
+      App.init();
+    };
+
+    // === 第一部分完成，后续追加 ===
+
+    // ======================== generateAIContent ========================
+    function generateAIContent(data) {
+      var r = function(min, max) { return Math.floor(Math.random() * (max - min)) + min; };
+
+      return {
+        letter: '亲爱的' + (data.name || '你') + '：\n\n在这个特别的日子里，宇宙为你点亮了最亮的那颗星。' + (data.age || '') + '年来，你用对' + (data.interests || '生活') + '的热爱，温暖了身边的每一个人。\n\n你喜欢的' + (data.favoriteAnimal || '小动物') + '一定也在为你庆祝。你心中的' + (data.favoriteDream || '梦想') + '，就像' + (data.favoriteColor || '蓝色') + '的星空一样，永远闪耀。\n\n愿你永远保持那份纯粹的勇气，继续追逐属于你的光芒。\n\nHappy Birthday!',
+
+        poem: (data.favoriteColor || '蓝色') + '的银河缓缓流淌\n' + (data.name || '你') + '的星光在此刻绽放\n' + (data.age || '') + '个春夏秋冬的诗篇\n写满了' + (data.interests || '热爱') + '的芬芳\n\n愿' + (data.favoriteAnimal || '风') + '载着梦想启航\n穿过极光越过汪洋\n在' + (data.favoriteDream || '远方') + '的彼岸\n有一束光永远为你点亮',
+
+        story: '在' + (data.theme === 'ocean' ? '深海' : data.theme === 'forest' ? '魔法森林' : data.theme === 'sakura' ? '樱花王国' : '星空帝国') + '里，住着一个叫' + (data.name || '你') + '的' + (data.gender === 'female' ? '女孩' : data.gender === 'male' ? '男孩' : '孩子') + '。Ta最大的梦想就是' + (data.dream || '探索世界的每一个角落') + '。\n\n这一天是Ta的' + (data.age || '') + '岁生日。一只' + (data.favoriteAnimal || '小精灵') + '带着' + (data.favoriteColor || '蓝色') + '的礼物来找Ta。\n\n"' + (data.name || '你') + '，宇宙为你准备了一个特别的冒险。"小精灵说。\n\n于是' + (data.name || '你') + '踏上了旅程。一路上，Ta用对' + (data.interests || '世界') + '的热爱化解了重重困难。最终，Ta发现，真正的礼物就是一路上收获的勇气和友谊。\n\n从此以后，每当有人问起' + (data.name || '你') + '的生日，星星们都会闪烁着' + (data.favoriteColor || '蓝色') + '的光芒，讲述这个温暖的故事。',
+
+        prediction: '未来的一年，宇宙为' + (data.name || '你') + '准备了无限可能。你对' + (data.interests || '热爱') + '的执着将开花结果，' + (data.dream || '梦想') + '不再遥远。' + (data.favoriteAnimal || '命运') + '会成为你最忠实的伙伴。记住，' + (data.age || '') + '岁只是开始，最好的永远在前方。',
+
+        fortune: generateFortune(),
+        luckyCard: '',
+        imageUrl: ''
+      };
+    }
+
+    // ======================== renderGames ========================
+    function renderGames(container) {
+      App.gameStep = 0;
+      renderGameStep(container, 0);
+    }
+
+    function renderGameStep(container, step) {
+      var renderers = [renderGiftBox, renderCandleLight, renderWishingStars, renderLuckyCard];
+      if (step < renderers.length) {
+        renderers[step](container);
+      } else {
+        App.goTo('ai-gift');
+      }
+    }
+
+    // ======================== renderGiftBox (游戏1: 礼物盒) ========================
+    function renderGiftBox(container) {
+      container.innerHTML = '<div class="flex-center" style="height:100%;">'
+        + '  <div style="text-align:center;">'
+        + '    <div class="gift-box-container" style="perspective:800px;margin:0 auto 30px;">'
+        + '      <div class="gift-lid" id="gift-lid" style="width:160px;height:30px;margin:0 auto;background:linear-gradient(135deg,#ec4899,#a855f7);border-radius:8px 8px 4px 4px;position:relative;transform-origin:bottom center;transition:transform 0.8s cubic-bezier(0.16,1,0.3,1);">'
+        + '        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:15px;background:#fbbf24;border-radius:4px;"></div>'
+        + '      </div>'
+        + '      <div class="gift-body" id="gift-body" style="width:150px;height:120px;margin:0 auto;background:linear-gradient(135deg,#a855f7,#6366f1);border-radius:4px 4px 12px 12px;position:relative;cursor:pointer;animation:giftWobble 2s ease-in-out infinite;">'
+        + '        <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:20px;height:100%;background:#fbbf24;"></div>'
+        + '        <div style="position:absolute;top:50%;left:0;transform:translateY(-50%);width:100%;height:20px;background:#fbbf24;"></div>'
+        + '      </div>'
+        + '    </div>'
+        + '    <canvas id="gift-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>'
+        + '    <div id="gift-result" class="hidden" style="margin-top:20px;">'
+        + '      <p class="text-xl text-gradient font-bold mb-4">第一份祝福已送达 \u2728</p>'
+        + '      <button class="btn-cosmic" id="gift-continue">继续 \u2192</button>'
+        + '    </div>'
+        + '  </div>'
+        + '</div>'
+        + '<style>'
+        + '  @keyframes giftWobble { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-2deg)} 75%{transform:rotate(2deg)} }'
+        + '  @keyframes giftLidOpen { 0%{transform:rotateX(0)} 100%{transform:rotateX(-120deg)} }'
+        + '</style>';
+
+      var opened = false;
+      document.getElementById('gift-body').addEventListener('click', function handler() {
+        if (opened) return;
+        opened = true;
+
+        // Open lid
+        document.getElementById('gift-lid').style.animation = 'giftLidOpen 0.8s cubic-bezier(0.16,1,0.3,1) forwards';
+        document.getElementById('gift-body').style.animation = 'none';
+        App.audio.giftOpen();
+
+        // Canvas particles
+        var canvas = document.getElementById('gift-canvas');
+        var ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        var W = canvas.width, H = canvas.height;
+        var cx = W / 2, cy = H / 2;
+        var particles = [];
+
+        // Burst particles
+        var colors = ['#4facfe', '#a855f7', '#ec4899', '#fbbf24', '#34d399'];
+        for (var i = 0; i < 200; i++) {
+          var angle = Math.random() * Math.PI * 2;
+          var speed = Math.random() * 8 + 3;
+          particles.push({
+            x: cx, y: cy,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            size: Math.random() * 3 + 1,
+            life: 1,
+            color: colors[Math.floor(Math.random() * colors.length)]
+          });
+        }
+
+        var burstTime = 0;
+        function animateParticles() {
+          ctx.clearRect(0, 0, W, H);
+          burstTime += 16;
+          for (var pi = 0; pi < particles.length; pi++) {
+            var p = particles[pi];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.1;
+            p.life -= 0.008;
+          }
+          particles = particles.filter(function(p) { return p.life > 0; });
+          for (var pj = 0; pj < particles.length; pj++) {
+            var pp = particles[pj];
+            ctx.beginPath();
+            ctx.arc(pp.x, pp.y, pp.size * Math.max(0, pp.life), 0, Math.PI * 2);
+            ctx.fillStyle = pp.color;
+            ctx.globalAlpha = Math.max(0, pp.life);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+
+          if (burstTime > 2000 && particles.length === 0) {
+            document.getElementById('gift-result').classList.remove('hidden');
+            document.getElementById('gift-continue').addEventListener('click', function() {
+              App.gameStep = 1;
+              renderGameStep(container, 1);
+            });
+          } else if (particles.length > 0) {
+            requestAnimationFrame(animateParticles);
+          } else if (burstTime <= 2000) {
+            requestAnimationFrame(animateParticles);
+          }
+        }
+        animateParticles();
+      });
+    }
+
+    // ======================== renderCandleLight (游戏2: 蜡烛照明) ========================
+    function renderCandleLight(container) {
+      var blessings = ['愿你被世界温柔以待', '愿所有美好如期而至', '愿你的每一天都闪闪发光', '愿梦想照进现实', '愿你永远快乐如初'];
+      var litCount = 0;
+
+      // Build candles HTML with string concatenation (no nested template literals)
+      var candlesHtml = '';
+      for (var ci = 0; ci < 5; ci++) {
+        candlesHtml += '<div class="candle" data-idx="' + ci + '" style="cursor:pointer;text-align:center;">'
+          + '  <div class="candle-flame" id="flame-' + ci + '" style="width:8px;height:16px;margin:0 auto;border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;background:linear-gradient(0deg,#fbbf24,#f97316,#fff);opacity:0;transition:opacity 0.3s;box-shadow:0 0 10px #fbbf24,0 0 20px rgba(251,191,36,0.5);"></div>'
+          + '  <div style="width:8px;height:40px;background:linear-gradient(0deg,#f87171,#fbbf24);border-radius:4px;margin:2px auto 0;"></div>'
+          + '</div>';
+      }
+
+      container.innerHTML = '<div class="flex-center" style="height:100%;">'
+        + '  <div style="text-align:center;">'
+        + '    <div id="cake-container" style="position:relative;width:200px;height:220px;margin:0 auto 20px;">'
+        + '      <!-- Candles -->'
+        + '      <div style="display:flex;justify-content:center;gap:24px;position:relative;z-index:2;margin-bottom:-10px;">'
+        +          candlesHtml
+        + '      </div>'
+        + '      <!-- Cake layers -->'
+        + '      <div style="width:180px;height:50px;background:linear-gradient(180deg,#fce7f3,#fbcfe8);border-radius:12px 12px 0 0;margin:0 auto;position:relative;">'
+        + '        <div style="position:absolute;top:8px;left:10%;right:10%;height:8px;background:rgba(255,255,255,0.4);border-radius:4px;"></div>'
+        + '      </div>'
+        + '      <div style="width:200px;height:55px;background:linear-gradient(180deg,#fbcfe8,#f9a8d4);border-radius:0 0 8px 8px;margin:0 auto;position:relative;">'
+        + '        <div style="position:absolute;bottom:5px;left:10%;right:10%;height:8px;background:rgba(255,255,255,0.3);border-radius:4px;"></div>'
+        + '        <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:12px;height:55px;background:rgba(255,255,255,0.15);border-radius:6px;"></div>'
+        + '      </div>'
+        + '      <div style="width:180px;height:15px;background:linear-gradient(180deg,#f9a8d4,#f472b6);border-radius:0 0 12px 12px;margin:0 auto;"></div>'
+        + '    </div>'
+        + '    <div id="blessing-text" style="min-height:40px;"></div>'
+        + '    <div id="candle-actions"></div>'
+        + '  </div>'
+        + '</div>';
+
+      // Candle click handlers
+      container.querySelectorAll('.candle').forEach(function(c) {
+        c.addEventListener('click', function() {
+          var idx = parseInt(c.getAttribute('data-idx'));
+          var flame = document.getElementById('flame-' + idx);
+          if (flame.style.opacity !== '1') {
+            flame.style.opacity = '1';
+            flame.style.animation = 'flicker 0.5s ease-in-out infinite alternate';
+            litCount++;
+            App.audio.candleLight();
+            document.getElementById('blessing-text').innerHTML = '<p class="text-lg fade-in-up">' + blessings[idx] + '</p>';
+
+            if (litCount === 5) {
+              setTimeout(function() {
+                App.audio.playBirthdaySong();
+                document.getElementById('candle-actions').innerHTML = '<p class="text-sm opacity-70 mb-4">许个愿望吧\u2026</p><button class="btn-cosmic" id="blow-btn">吹蜡烛 \u{1F32C}\u{FE0F}</button>';
+                document.getElementById('blow-btn').addEventListener('click', function() {
+                  App.audio.candleBlow();
+                  // Extinguish all candles
+                  for (var ei = 0; ei < 5; ei++) {
+                    var ef = document.getElementById('flame-' + ei);
+                    ef.style.opacity = '0';
+                    ef.style.animation = 'none';
+                  }
+                  document.getElementById('candle-actions').innerHTML = '<button class="btn-cosmic mt-4" id="candle-continue">继续 \u2192</button>';
+                  document.getElementById('candle-continue').addEventListener('click', function() {
+                    App.gameStep = 2;
+                    renderGameStep(container, 2);
+                  });
+                });
+              }, 1500);
+            }
+          }
+        });
+      });
+    }
+
+    // ======================== renderWishingStars (游戏3: 愿望星) ========================
+    function renderWishingStars(container) {
+      var wishes = ['健康', '快乐', '勇敢', '梦想', '财富', '友情', '爱情', '自由'];
+      var collected = [];
+
+      // Build wish stars HTML with string concatenation
+      var starsHtml = '';
+      for (var si = 0; si < wishes.length; si++) {
+        var leftPos = 10 + Math.random() * 75;
+        var topPos = 10 + Math.random() * 65;
+        starsHtml += '<div class="wish-star" data-wish="' + wishes[si] + '" data-idx="' + si + '" style="position:absolute;left:' + leftPos + '%;top:' + topPos + '%;cursor:pointer;transition:all 0.5s;animation:softFloat ' + (3 + si * 0.5) + 's ease-in-out infinite;animation-delay:' + (si * 0.3) + 's;">'
+          + '  <div style="width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,0.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:14px;text-align:center;padding:8px;">'
+          + '    <span>' + wishes[si] + '</span>'
+          + '  </div>'
+          + '</div>';
+      }
+
+      container.innerHTML = '<div style="position:relative;width:100%;height:100%;">'
+        + '  <div id="wish-stars" style="position:absolute;top:0;left:0;width:100%;height:70%;">'
+        +      starsHtml
+        + '  </div>'
+        + '  <div id="wish-progress" style="position:absolute;bottom:12%;left:0;right:0;text-align:center;">'
+        + '    <p class="text-sm opacity-70">收集愿望星 (0/' + wishes.length + ')</p>'
+        + '    <div style="width:200px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin:10px auto;">'
+        + '      <div id="wish-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#4facfe,#a855f7);border-radius:2px;transition:width 0.5s;"></div>'
+        + '    </div>'
+        + '  </div>'
+        + '  <div id="wish-complete" class="hidden" style="position:absolute;bottom:8%;left:0;right:0;text-align:center;">'
+        + '    <button class="btn-cosmic" id="wish-continue">继续 \u2192</button>'
+        + '  </div>'
+        + '  <canvas id="wish-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;"></canvas>'
+        + '  <style>@keyframes softFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}</style>'
+        + '</div>';
+
+      container.querySelectorAll('.wish-star').forEach(function(star) {
+        star.addEventListener('click', function() {
+          if (star.getAttribute('data-collected')) return;
+          star.setAttribute('data-collected', '1');
+          collected.push(star.getAttribute('data-wish'));
+          App.audio.wishCollect();
+
+          // Animate star flying down
+          star.style.transform = 'translateY(300px) scale(0)';
+          star.style.opacity = '0';
+
+          document.getElementById('wish-progress').querySelector('p').textContent = '收集愿望星 (' + collected.length + '/' + wishes.length + ')';
+          document.getElementById('wish-bar').style.width = (collected.length / wishes.length * 100) + '%';
+
+          if (collected.length === wishes.length) {
+            setTimeout(function() {
+              drawHeart();
+              document.getElementById('wish-complete').classList.remove('hidden');
+              document.getElementById('wish-continue').addEventListener('click', function() {
+                App.gameStep = 3;
+                renderGameStep(container, 3);
+              });
+            }, 1000);
+          }
+        });
+      });
+
+      function drawHeart() {
+        var canvas = document.getElementById('wish-canvas');
+        var ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        var W = canvas.width, H = canvas.height;
+        var heartParticles = [];
+        var time = 0;
+
+        // Generate heart shape points
+        for (var hi = 0; hi < 150; hi++) {
+          var t = hi / 150 * Math.PI * 2;
+          var hx = 16 * Math.pow(Math.sin(t), 3);
+          var hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+          heartParticles.push({
+            x: 0, y: 0,
+            targetX: W / 2 + hx * 12,
+            targetY: H / 2 + hy * 12 - 30,
+            size: 3,
+            arrived: false
+          });
+        }
+
+        function animate() {
+          ctx.clearRect(0, 0, W, H);
+          time++;
+          var allArrived = true;
+          for (var pi = 0; pi < heartParticles.length; pi++) {
+            var p = heartParticles[pi];
+            if (!p.arrived) {
+              p.x += (p.targetX - p.x) * 0.08;
+              p.y += (p.targetY - p.y) * 0.08;
+              if (Math.abs(p.x - p.targetX) < 1 && Math.abs(p.y - p.targetY) < 1) {
+                p.x = p.targetX;
+                p.y = p.targetY;
+                p.arrived = true;
+              }
+              allArrived = false;
+            }
+            var glow = 0.6 + Math.sin(time * 0.05 + p.targetX * 0.01) * 0.3;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(236,72,153,' + glow + ')';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(236,72,153,' + (glow * 0.15) + ')';
+            ctx.fill();
+          }
+          if (!allArrived || time < 300) requestAnimationFrame(animate);
+        }
+        animate();
+      }
+    }
+
+    // ======================== renderLuckyCard (游戏4: 幸运卡) ========================
+    function renderLuckyCard(container) {
+      var drawCount = 0;
+      var maxDraws = 3;
+      var data = App.birthdayData || {};
+      var cards = generateLuckyCards(data);
+
+      container.innerHTML = '<div class="flex-center" style="height:100%;">'
+        + '  <div style="text-align:center;">'
+        + '    <h2 class="text-2xl font-bold text-gradient mb-8">幸运礼物</h2>'
+        + '    <div id="card-container" style="perspective:1000px;width:280px;height:380px;margin:0 auto;cursor:pointer;">'
+        + '      <div id="card-inner" style="position:relative;width:100%;height:100%;transition:transform 0.8s;transform-style:preserve-3d;">'
+        + '        <div style="position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:20px;overflow:hidden;" class="glass-strong">'
+        + '          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(circle at 50% 50%,rgba(79,172,254,0.15),transparent 70%);">'
+        + '            <div style="font-size:60px;margin-bottom:20px;">\u{1F52E}</div>'
+        + '            <p class="opacity-70">点击翻开</p>'
+        + '          </div>'
+        + '        </div>'
+        + '        <div id="card-back" style="position:absolute;width:100%;height:100%;backface-visibility:hidden;transform:rotateY(180deg);border-radius:20px;overflow:hidden;padding:30px;display:flex;align-items:center;justify-content:center;text-align:center;" class="glass-strong">'
+        + '          <p id="card-text" class="text-lg" style="line-height:1.8;"></p>'
+        + '        </div>'
+        + '      </div>'
+        + '    </div>'
+        + '    <div id="card-actions" style="margin-top:30px;">'
+        + '      <p class="text-sm opacity-50">' + drawCount + '/' + maxDraws + '</p>'
+        + '    </div>'
+        + '  </div>'
+        + '</div>';
+
+      function drawCard() {
+        var card = cards[drawCount % cards.length];
+        var textEl = document.getElementById('card-text');
+        textEl.textContent = '';
+        document.getElementById('card-inner').style.transform = 'rotateY(180deg)';
+        App.audio.cardFlip();
+
+        // Typewriter effect
+        var i = 0;
+        var interval = setInterval(function() {
+          if (i < card.length) {
+            textEl.textContent += card[i];
+            i++;
+            if (i % 3 === 0) App.audio.typewriterClick();
+          } else {
+            clearInterval(interval);
+            drawCount++;
+            var actions = document.getElementById('card-actions');
+            var btns = '<p class="text-sm opacity-50 mt-4">' + drawCount + '/' + maxDraws + '</p>';
+            if (drawCount < maxDraws) {
+              btns += '<button class="btn-cosmic mt-4" id="draw-again">再抽一张</button>';
+            }
+            btns += '<button class="btn-cosmic mt-4" style="margin-left:8px;background:linear-gradient(135deg,#34d399,#22c55e);" id="card-continue">继续 \u2192</button>';
+            actions.innerHTML = btns;
+
+            var drawAgainBtn = document.getElementById('draw-again');
+            if (drawAgainBtn) {
+              drawAgainBtn.addEventListener('click', function() {
+                document.getElementById('card-inner').style.transform = 'rotateY(0)';
+                setTimeout(drawCard, 500);
+              });
+            }
+            document.getElementById('card-continue').addEventListener('click', function() {
+              App.gameStep = 4;
+              App.goTo('ai-gift');
+            });
+          }
+        }, 50);
+      }
+
+      document.getElementById('card-container').addEventListener('click', drawCard);
+    }
+
+    function generateLuckyCards(data) {
+      return [
+        '亲爱的' + (data.name || '你') + '，在这个被星光眷顾的日子里，愿你像' + (data.favoriteAnimal || '雄鹰') + '一样自由翱翔。你热爱的' + (data.interests || '一切') + '，终将化为守护你的力量。记住，你是宇宙中最独特的存在。',
+        '时光如' + (data.favoriteColor || '蓝色') + '的河流，轻轻流淌过' + (data.age || 18) + '个春秋。' + (data.name || '你') + '，你的笑容是世界上最温暖的星光。愿你在追逐' + (data.dream || '梦想') + '的路上，永远有人为你点亮一盏灯。',
+        '如果梦想有颜色，那一定是' + (data.favoriteColor || '金色') + '的。' + (data.name || '你') + '，' + (data.age || 18) + '岁的你正站在人生最美的路口。前方有' + (data.favoriteAnimal || '蝴蝶') + '为你引路，有星光为你指航。',
+      ];
+    }
+
+    // ======================== renderAIGift ========================
+    function renderAIGift(container) {
+      if (!App.aiContent) {
+        App.aiContent = generateAIContent(App.birthdayData || {});
+      }
+      var content = App.aiContent;
+      var data = App.birthdayData || {};
+
+      var tabNames = ['生日信', '生日诗', '童话故事', '未来寄语'];
+      var activeTab = 0;
+
+      function render() {
+        // Build tab bar HTML
+        var tabBarHtml = '';
+        for (var ti = 0; ti < tabNames.length; ti++) {
+          var isActive = (ti === activeTab);
+          var tabStyle = 'flex:1;padding:14px;cursor:pointer;transition:all 0.3s;font-size:0.9rem;';
+          if (isActive) {
+            tabStyle += 'color:#fff;border-bottom:2px solid #4facfe;';
+          } else {
+            tabStyle += 'color:rgba(255,255,255,0.5);';
+          }
+          tabBarHtml += '<div class="tab-btn" data-tab="' + ti + '" style="' + tabStyle + '">' + tabNames[ti] + '</div>';
+        }
+
+        // Build tab content
+        var tabContentHtml = '';
+        var gradBorder = 'border-left:3px solid;border-image:linear-gradient(180deg,#4facfe,#a855f7) 1;';
+        if (activeTab === 0) {
+          tabContentHtml = '<div style="' + gradBorder + 'padding-left:20px;white-space:pre-line;line-height:2;opacity:0;animation:fadeIn 0.8s 0.2s forwards;">' + content.letter + '</div>';
+        } else if (activeTab === 1) {
+          tabContentHtml = '<div style="text-align:center;white-space:pre-line;line-height:2.5;font-size:1.1rem;opacity:0;animation:fadeIn 0.8s 0.2s forwards;">' + content.poem + '</div>';
+        } else if (activeTab === 2) {
+          tabContentHtml = '<div style="white-space:pre-line;line-height:2;opacity:0;animation:fadeIn 0.8s 0.2s forwards;padding:10px 0;">' + content.story + '</div>';
+        } else if (activeTab === 3) {
+          tabContentHtml = '<div style="white-space:pre-line;line-height:2;opacity:0;animation:fadeIn 0.8s 0.2s forwards;padding:10px 0;text-shadow:0 0 10px rgba(79,172,254,0.3);">' + content.prediction + '</div>';
+        }
+
+        container.innerHTML = '<div class="flex-center" style="height:100%;padding:20px;">'
+          + '  <div style="max-width:600px;width:100%;text-align:center;">'
+          + '    <h2 class="text-2xl font-bold text-gradient mb-6 fade-in">AI 为' + (data.name || '你') + '准备的专属礼物</h2>'
+          + '    <div class="glass-strong" style="padding:0;overflow:hidden;">'
+          + '      <!-- Tab bar -->'
+          + '      <div style="display:flex;border-bottom:1px solid rgba(255,255,255,0.1);">'
+          +          tabBarHtml
+          + '      </div>'
+          + '      <!-- Tab content -->'
+          + '      <div style="padding:30px;min-height:300px;text-align:left;">'
+          +          tabContentHtml
+          + '      </div>'
+          + '    </div>'
+          + '    <button class="btn-cosmic mt-8" id="ai-continue">这礼物太棒了！继续 \u2192</button>'
+          + '  </div>'
+          + '</div>';
+
+        container.querySelectorAll('.tab-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            activeTab = parseInt(btn.getAttribute('data-tab'));
+            render();
+          });
+        });
+
+        document.getElementById('ai-continue').addEventListener('click', function() {
+          App.goTo('birthday-tree');
+        });
+      }
+
+      render();
+    }
+
+    // ======================== 生日之树 ========================
+    function renderBirthdayTree(container) {
+      // Use gameStep to track progress: gameStep reaches 4 when all games done,
+      // and aiContent is set when reaching ai-gift chapter
+      var progress = Math.min(4, [
+        App.birthdayData ? 1 : 0,
+        App.gameStep >= 1 ? 1 : 0,  // at least 1 game done
+        App.gameStep >= 4 ? 1 : 0,  // all 4 games done
+        App.aiContent ? 1 : 0,      // AI gift generated
+        0  // fireworks / climax = always 0 until reached
+      ].reduce(function(a,b){return a+b},0));
+      var growth = progress / 4;
+
+      container.innerHTML =
+        '<div class="flex-center" style="height:100%;flex-direction:column;">' +
+        '<h2 class="text-2xl font-bold text-gradient mb-4 fade-in" style="animation-delay:0.2s">\uD83C\uDF33 你的生日之树</h2>' +
+        '<canvas id="tree-canvas" style="width:300px;height:400px;" class="fade-in"></canvas>' +
+        '<div id="tree-dots" class="fade-in" style="display:flex;gap:12px;margin-top:16px;animation-delay:0.4s">' +
+          ['\u79CD\u5B50','\u53D1\u82BD','\u957F\u53F6','\u5F00\u82B1','\u7ED3\u679C'].map(function(l,i){
+            return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
+              '<div style="width:10px;height:10px;border-radius:50%;background:'+(i<=progress?'linear-gradient(135deg,#4facfe,#a855f7)':'rgba(255,255,255,0.15)')+';"></div>' +
+              '<span class="text-sm opacity-50">'+l+'</span></div>';
+          }).join('') +
+        '</div>' +
+        '<div id="tree-msg" class="hidden" style="text-align:center;margin-top:20px;">' +
+          '<p class="text-lg mb-4 fade-in">\u4F60\u7684\u751F\u65E5\u4E4B\u6811\u5DF2\u6210\u957F\u4E3A\u4E00\u68F5\u53C2\u5929\u5927\u6811 \uD83C\uDF89</p>' +
+          '<button class="btn-cosmic" id="tree-continue">\u7EE7\u7EED \u2192</button>' +
+        '</div>' +
+        '</div>';
+
+      var canvas = document.getElementById('tree-canvas');
+      var ctx = canvas.getContext('2d');
+      canvas.width = 300 * 2; canvas.height = 400 * 2;
+      ctx.scale(2, 2);
+      var W = 300, H = 400;
+      var currentGrowth = 0;
+      var fireflies = [];
+      var time = 0;
+      var animId;
+
+      function drawTree() {
+        ctx.clearRect(0, 0, W, H);
+        var g = currentGrowth;
+        time += 0.016;
+
+        // Trunk
+        if(g > 0.05) {
+          var trunkH = Math.min(1, g / 0.4) * 150;
+          ctx.beginPath();
+          ctx.moveTo(150, 380);
+          ctx.bezierCurveTo(145, 380 - trunkH*0.5, 155, 380 - trunkH*0.7, 150, 380 - trunkH);
+          ctx.strokeStyle = '#8B6914';
+          ctx.lineWidth = 8;
+          ctx.stroke();
+
+          // Branches
+          if(g > 0.3) {
+            var branchCount = Math.floor(Math.min(1, (g-0.3)/0.3) * 8);
+            for(var i = 0; i < branchCount; i++) {
+              var by = 380 - trunkH * (0.4 + i * 0.07);
+              var dir = i % 2 === 0 ? 1 : -1;
+              var blen = 20 + i * 5;
+              ctx.beginPath();
+              ctx.moveTo(150, by);
+              ctx.quadraticCurveTo(150 + dir * blen * 0.5, by - 10, 150 + dir * blen, by - 15);
+              ctx.strokeStyle = '#8B6914';
+              ctx.lineWidth = 3;
+              ctx.stroke();
+            }
+          }
+
+          // Leaves
+          if(g > 0.5) {
+            var leafCount = Math.floor(Math.min(1, (g-0.5)/0.2) * 30);
+            for(var i = 0; i < leafCount; i++) {
+              var lx = 150 + (Math.sin(i * 1.5) * 60);
+              var ly = 380 - trunkH * (0.3 + Math.abs(Math.cos(i * 0.8)) * 0.6);
+              ctx.beginPath();
+              ctx.ellipse(lx + Math.sin(time + i) * 2, ly, 6, 4, Math.sin(time*0.5 + i) * 0.3, 0, Math.PI * 2);
+              ctx.fillStyle = 'rgba(52,211,153,' + (0.5 + Math.sin(time + i) * 0.2) + ')';
+              ctx.fill();
+            }
+          }
+
+          // Flowers
+          if(g > 0.7) {
+            var flowerCount = Math.floor(Math.min(1, (g-0.7)/0.15) * 12);
+            for(var i = 0; i < flowerCount; i++) {
+              var fx = 150 + (Math.cos(i * 2.1) * 50);
+              var fy = 380 - trunkH * (0.4 + Math.sin(i * 1.3) * 0.4);
+              for(var p = 0; p < 5; p++) {
+                var pa = p * Math.PI * 2 / 5 + time * 0.2;
+                ctx.beginPath();
+                ctx.ellipse(fx + Math.cos(pa) * 6, fy + Math.sin(pa) * 6, 4, 3, pa, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(244,114,182,' + (0.6 + Math.sin(time + p) * 0.2) + ')';
+                ctx.fill();
+              }
+              ctx.beginPath(); ctx.arc(fx, fy, 2, 0, Math.PI*2);
+              ctx.fillStyle = '#fbbf24'; ctx.fill();
+            }
+          }
+
+          // Fruits
+          if(g > 0.9) {
+            var fruitCount = Math.floor(Math.min(1, (g-0.9)/0.1) * 8);
+            for(var i = 0; i < fruitCount; i++) {
+              var frx = 150 + (Math.sin(i * 3.7) * 45);
+              var fry = 380 - trunkH * (0.5 + Math.cos(i * 2.3) * 0.3);
+              ctx.beginPath(); ctx.arc(frx, fry, 5, 0, Math.PI*2);
+              ctx.fillStyle = '#fbbf24'; ctx.fill();
+              ctx.beginPath(); ctx.arc(frx, fry, 8, 0, Math.PI*2);
+              ctx.fillStyle = 'rgba(251,191,36,0.15)'; ctx.fill();
+            }
+          }
+        } else {
+          // Seed
+          ctx.beginPath(); ctx.arc(150, 370, 5, 0, Math.PI*2);
+          ctx.fillStyle = '#8B6914'; ctx.fill();
+        }
+
+        // Fireflies
+        if(g > 0.6) {
+          while(fireflies.length < 20) {
+            fireflies.push({x:Math.random()*W, y:Math.random()*H*0.7+50, vx:(Math.random()-0.5)*0.5, vy:(Math.random()-0.5)*0.5, phase:Math.random()*Math.PI*2});
+          }
+          fireflies.forEach(function(f) {
+            f.x += f.vx + Math.sin(time*2+f.phase)*0.3;
+            f.y += f.vy + Math.cos(time*1.5+f.phase)*0.3;
+            if(f.x<0) f.x=W; if(f.x>W) f.x=0;
+            if(f.y<50) f.y=50; if(f.y>H) f.y=H;
+            var glow = 0.3 + Math.sin(time*3+f.phase)*0.3;
+            ctx.beginPath(); ctx.arc(f.x,f.y,2,0,Math.PI*2);
+            ctx.fillStyle='rgba(251,191,36,'+glow+')'; ctx.fill();
+            ctx.beginPath(); ctx.arc(f.x,f.y,6,0,Math.PI*2);
+            ctx.fillStyle='rgba(251,191,36,'+(glow*0.2)+')'; ctx.fill();
+          });
+        }
+
+        // Smooth growth interpolation
+        if(currentGrowth < growth) {
+          currentGrowth = Math.min(growth, currentGrowth + 0.005);
+        }
+
+        animId = requestAnimationFrame(drawTree);
+      }
+      drawTree();
+
+      if(growth >= 1) {
+        setTimeout(function(){ document.getElementById('tree-msg').classList.remove('hidden'); }, 1000);
+      }
+
+      document.getElementById('tree-continue').addEventListener('click', function() {
+        cancelAnimationFrame(animId);
+        App.goTo('climax');
+      });
+    }
+
+    // ======================== 高潮章节 ========================
+    function renderClimax(container) {
+      App.audio.intensifyBgm();
+      var data = App.birthdayData;
+      var content = App.aiContent;
+
+      container.innerHTML =
+        '<canvas id="climax-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>' +
+        '<div id="climax-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">' +
+        '</div>';
+
+      var canvas = document.getElementById('climax-canvas');
+      var ctx = canvas.getContext('2d');
+      var W = window.innerWidth, H = window.innerHeight;
+      canvas.width = W; canvas.height = H;
+
+      var fireworks = [];
+      var particles = [];
+      var startTime = performance.now();
+      var showText = false;
+      var showTTS = false;
+      var animId;
+      var lastFirework = 0;
+
+      var colors = {
+        starry:['#4facfe','#a855f7','#ec4899'], sakura:['#f472b6','#fb7185','#fbbf24'],
+        candy:['#fb923c','#f472b6','#a855f7'], ocean:['#22d3ee','#3b82f6','#34d399'],
+        forest:['#34d399','#22c55e','#fbbf24'], castle:['#c084fc','#e879f9','#fbbf24'],
+        aurora:['#a78bfa','#34d399','#60a5fa'], chinese:['#ef4444','#fbbf24','#ec4899'],
+        tech:['#06b6d4','#8b5cf6','#22d3ee']
+      };
+      var fwColors = colors[data.theme] || colors.starry;
+
+      function spawnFirework() {
+        var x = Math.random() * W * 0.6 + W * 0.2;
+        var targetY = Math.random() * H * 0.4 + H * 0.1;
+        fireworks.push({
+          x: x, y: H, targetY: targetY, vy: -(6 + Math.random() * 4),
+          color: fwColors[Math.floor(Math.random() * fwColors.length)],
+          trail: []
+        });
+      }
+
+      function explode(x, y, color) {
+        var count = 80 + Math.floor(Math.random() * 60);
+        for(var i = 0; i < count; i++) {
+          var angle = Math.random() * Math.PI * 2;
+          var speed = Math.random() * 5 + 1;
+          particles.push({
+            x: x, y: y,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+            life: 1, color: color, size: Math.random() * 2 + 0.5
+          });
+        }
+        App.audio.firework();
+      }
+
+      function draw() {
+        var elapsed = performance.now() - startTime;
+
+        // Semi-transparent overlay for trails
+        ctx.fillStyle = 'rgba(10,10,26,0.15)';
+        ctx.fillRect(0, 0, W, H);
+
+        // Planet (0-5s)
+        if(elapsed < 5000) {
+          var planetScale = Math.min(1, elapsed / 3000);
+          var pr = Math.min(W, H) * 0.06 * planetScale;
+          var grad = ctx.createRadialGradient(W/2 - pr*0.2, H*0.35 - pr*0.2, pr*0.1, W/2, H*0.35, Math.max(1,pr));
+          grad.addColorStop(0, '#60a5fa'); grad.addColorStop(0.7, '#3b82f6'); grad.addColorStop(1, '#1e3a5f');
+          ctx.beginPath(); ctx.arc(W/2, H*0.35, Math.max(1,pr), 0, Math.PI*2); ctx.fillStyle = grad; ctx.fill();
+
+          if(planetScale > 0.5) {
+            ctx.font = '16px Inter, system-ui, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, (planetScale-0.5)*2) + ')';
+            ctx.textAlign = 'center';
+            ctx.fillText(data.name + ' Planet', W/2, H*0.35 + pr + 25);
+          }
+        }
+
+        // Fireworks (5-15s)
+        if(elapsed > 5000 && elapsed < 15000) {
+          if(elapsed - lastFirework > 800) {
+            spawnFirework();
+            lastFirework = elapsed;
+          }
+        }
+
+        // Update fireworks
+        fireworks = fireworks.filter(function(fw) {
+          fw.y += fw.vy;
+          fw.trail.push({x:fw.x, y:fw.y});
+          if(fw.trail.length > 8) fw.trail.shift();
+
+          // Draw trail
+          for(var i = 0; i < fw.trail.length; i++) {
+            var alpha = i / fw.trail.length * 0.5;
+            ctx.beginPath(); ctx.arc(fw.trail[i].x, fw.trail[i].y, 1.5, 0, Math.PI*2);
+            ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')'; ctx.fill();
+          }
+
+          // Check if reached target
+          if(fw.y <= fw.targetY) {
+            explode(fw.x, fw.y, fw.color);
+            return false;
+          }
+          return true;
+        });
+
+        // Update particles
+        particles = particles.filter(function(p) {
+          p.x += p.vx; p.y += p.vy;
+          p.vy += 0.04; p.vx *= 0.985; p.vy *= 0.985;
+          p.life -= 0.008;
+
+          ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.1, p.size * p.life), 0, Math.PI*2);
+          ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life);
+          ctx.fill(); ctx.globalAlpha = 1;
+
+          return p.life > 0;
+        });
+
+        // Happy Birthday text (10s+)
+        if(elapsed > 10000 && !showText) {
+          showText = true;
+          var overlay = document.getElementById('climax-overlay');
+          overlay.innerHTML =
+            '<h1 class="text-4xl font-bold text-gradient text-glow fade-in" style="animation-delay:0s">Happy Birthday</h1>' +
+            '<h2 class="text-3xl font-bold text-gradient mt-4 fade-in" style="animation-delay:0.5s">' + data.name + '</h2>';
+          overlay.style.pointerEvents = 'auto';
+        }
+
+        // TTS button (15s+)
+        if(elapsed > 15000 && !showTTS) {
+          showTTS = true;
+          var overlay = document.getElementById('climax-overlay');
+          var blessing = content ? content.letter.split('\n')[0] : '\u4EB2\u7231\u7684' + data.name + '\uFF0C\u751F\u65E5\u5FEB\u4E50\uFF01';
+          overlay.innerHTML +=
+            '<p class="mt-8 opacity-90 text-lg fade-in" style="animation-delay:1s;max-width:500px;line-height:1.8;text-align:center;">' + blessing + '</p>' +
+            '<div style="display:flex;gap:12px;margin-top:20px;" class="fade-in">' +
+              '<button class="btn-cosmic" id="tts-btn">\uD83C\uDFA4 \u6717\u8BFB\u795D\u798F</button>' +
+              '<button class="btn-cosmic" id="climax-continue" style="background:linear-gradient(135deg,#34d399,#22c55e);">\u7EE7\u7EED\u65C5\u7A0B \u2192</button>' +
+            '</div>';
+
+          document.getElementById('tts-btn').addEventListener('click', function() {
+            if('speechSynthesis' in window) {
+              var utterance = new SpeechSynthesisUtterance(blessing);
+              utterance.lang = 'zh-CN'; utterance.rate = 0.9;
+              speechSynthesis.speak(utterance);
+            }
+          });
+
+          document.getElementById('climax-continue').addEventListener('click', function() {
+            cancelAnimationFrame(animId);
+            speechSynthesis.cancel();
+            App.goTo('universe');
+          });
+        }
+
+        if(elapsed < 20000) {
+          animId = requestAnimationFrame(draw);
+        }
+      }
+      draw();
+    }
+
+    // ======================== 生日宇宙 ========================
+    function renderUniverse(container) {
+      App.audio.softenBgm();
+      var data = App.birthdayData;
+
+      container.innerHTML =
+        '<canvas id="universe-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>' +
+        '<div id="universe-ui" class="hidden" style="position:absolute;bottom:15%;left:0;right:0;text-align:center;">' +
+          '<div style="display:flex;gap:12px;justify-content:center;">' +
+            '<button class="btn-cosmic" id="universe-save">\u4FDD\u5B58\u7EAA\u5FF5</button>' +
+            '<button class="btn-cosmic" id="universe-share" style="background:linear-gradient(135deg,#34d399,#22c55e);">\u5206\u4EAB\u7ED9\u670B\u53CB</button>' +
+          '</div>' +
+        '</div>';
+
+      var canvas = document.getElementById('universe-canvas');
+      var ctx = canvas.getContext('2d');
+      var W = window.innerWidth, H = window.innerHeight;
+      canvas.width = W; canvas.height = H;
+      var startTime = performance.now();
+      var stars = [];
+      for(var i = 0; i < 200; i++) {
+        stars.push({x:Math.random()*W, y:Math.random()*H, size:Math.random()*2+0.5, brightness:Math.random()});
+      }
+      var animId;
+
+      function draw() {
+        var elapsed = performance.now() - startTime;
+        var t = elapsed / 1000;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, W, H);
+
+        // Stars with zoom out
+        var scale = 1 + t * 0.15;
+        stars.forEach(function(s) {
+          var sx = (s.x - W/2) * scale + W/2;
+          var sy = (s.y - H/2) * scale + H/2;
+          var flicker = 0.3 + Math.sin(t * 3 + s.brightness * 10) * 0.3;
+          ctx.beginPath(); ctx.arc(sx, sy, s.size / scale, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,' + flicker + ')'; ctx.fill();
+        });
+
+        // Card morphing (5s+)
+        if(t > 5) {
+          var morphProgress = Math.min(1, (t - 5) / 3);
+          var cw = 280 * morphProgress;
+          var ch = 360 * morphProgress;
+          var cx = W/2, cy = H/2;
+          var cornerR = Math.max(1, 24 * morphProgress);
+
+          // Glass card
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(cx - cw/2, cy - ch/2, cw, ch, cornerR);
+          ctx.fillStyle = 'rgba(255,255,255,' + (0.08 * morphProgress) + ')';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,' + (0.15 * morphProgress) + ')';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Card text
+          if(morphProgress > 0.5) {
+            var textAlpha = (morphProgress - 0.5) * 2;
+            ctx.font = 'bold 20px Inter, system-ui, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,' + textAlpha + ')';
+            ctx.textAlign = 'center';
+            ctx.fillText(data.name + ' Planet', cx, cy - 20);
+
+            ctx.font = '14px Inter, system-ui, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,' + (textAlpha * 0.7) + ')';
+            ctx.fillText('\u4ECA\u5929\uFF0C\u5B87\u5B99\u56E0\u4E3A\u4F60\uFF0C\u591A\u4E86\u4E00\u5C81\u3002', cx, cy + 20);
+
+            // Decorative stars on card
+            for(var i = 0; i < 5; i++) {
+              var sx = cx - 40 + i * 20;
+              var sy = cy + 50 + Math.sin(t * 2 + i) * 5;
+              ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI*2);
+              ctx.fillStyle = 'rgba(79,172,254,' + (textAlpha * 0.5) + ')'; ctx.fill();
+            }
+          }
+          ctx.restore();
+        }
+
+        // Show buttons at 10s
+        if(t > 10 && document.getElementById('universe-ui').classList.contains('hidden')) {
+          document.getElementById('universe-ui').classList.remove('hidden');
+          document.getElementById('universe-save').addEventListener('click', function() {
+            alert('\u7EAA\u5FF5\u5DF2\u4FDD\u5B58\u5230\u5B87\u5B99 \uD83C\uDF0C');
+          });
+          document.getElementById('universe-share').addEventListener('click', function() {
+            cancelAnimationFrame(animId);
+            App.goTo('share');
+          });
+        }
+
+        if(t < 12) {
+          animId = requestAnimationFrame(draw);
+        }
+      }
+      draw();
+    }
+
+    // ======================== 分享页面 ========================
+    function renderSharePage(container) {
+      var data = App.birthdayData;
+      var content = App.aiContent;
+      var poemLine = content ? content.poem.split('\n')[0] : '\u613F\u661F\u5149\u6C38\u8FDC\u7167\u8000\u7740\u4F60';
+      var messages = [];
+
+      container.innerHTML =
+        '<div class="flex-center" style="height:100%;padding:20px;overflow-y:auto;">' +
+        '<div style="max-width:500px;width:100%;text-align:center;">' +
+          '<h2 class="text-2xl font-bold text-gradient mb-2 fade-in">\u4F60\u7684\u751F\u65E5\u5B87\u5B99</h2>' +
+          '<p class="text-sm opacity-70 mb-6 fade-in" style="animation-delay:0.2s">\u5C06\u8FD9\u4EFD\u72EC\u4E00\u65E0\u4E8C\u7684\u795D\u798F\u5206\u4EAB\u7ED9\u66F4\u591A\u4EBA</p>' +
+
+          // Poster preview
+          '<div class="glass-strong fade-in" style="padding:30px;margin:0 auto 24px;max-width:320px;background:linear-gradient(135deg,rgba(79,172,254,0.1),rgba(168,85,247,0.1));animation-delay:0.4s">' +
+            '<h3 class="text-gradient text-lg font-bold">Birthday Galaxy</h3>' +
+            '<p class="mt-2 text-xl font-bold">' + data.name + ' \u7684 ' + data.age + ' \u5C81\u751F\u65E5</p>' +
+            '<p class="mt-4 opacity-70 text-sm" style="line-height:1.8;">' + poemLine + '</p>' +
+            '<div style="margin-top:16px;display:flex;justify-content:center;gap:8px;">' +
+              '<span style="font-size:8px;">\u2726</span><span style="font-size:12px;">\u2727</span><span style="font-size:8px;">\u2726</span>' +
+            '</div>' +
+          '</div>' +
+
+          // Buttons
+          '<div class="fade-in" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;animation-delay:0.6s">' +
+            '<button class="glass" style="padding:16px;cursor:pointer;color:#e2e8f0;font-size:0.9rem;" id="btn-save">\uD83D\uDCF8 \u4FDD\u5B58\u6D77\u62A5</button>' +
+            '<button class="glass" style="padding:16px;cursor:pointer;color:#e2e8f0;font-size:0.9rem;" id="btn-copy">\uD83D\uDD17 \u590D\u5236\u94FE\u63A5</button>' +
+            '<button class="glass" style="padding:16px;cursor:pointer;color:#e2e8f0;font-size:0.9rem;" id="btn-wechat">\uD83D\uDCAC \u5206\u4EAB\u5FAE\u4FE1</button>' +
+            '<button class="glass" style="padding:16px;cursor:pointer;color:#e2e8f0;font-size:0.9rem;" id="btn-restart">\u2728 \u518D\u6765\u4E00\u6B21</button>' +
+          '</div>' +
+
+          // Guestbook
+          '<div class="glass fade-in" style="padding:24px;text-align:left;animation-delay:0.8s">' +
+            '<h3 class="text-lg font-bold mb-4">\u7559\u8A00\u5899</h3>' +
+            '<div id="messages-list" style="max-height:150px;overflow-y:auto;margin-bottom:12px;"></div>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<input id="msg-input" class="glass-input" placeholder="\u5199\u4E0B\u4F60\u7684\u795D\u798F\u2026" style="flex:1;">' +
+              '<button class="btn-cosmic" style="padding:10px 20px;font-size:0.9rem;" id="msg-send">\u53D1\u9001</button>' +
+            '</div>' +
+          '</div>' +
+
+          '<p class="mt-6 text-sm opacity-50">Made with \u2764\uFE0F by Birthday Galaxy</p>' +
+        '</div>' +
+        '</div>';
+
+      // Button handlers
+      document.getElementById('btn-save').addEventListener('click', function() {
+        var pc = document.createElement('canvas');
+        pc.width = 750; pc.height = 1334;
+        var pctx = pc.getContext('2d');
+        var grad = pctx.createLinearGradient(0,0,0,1334);
+        grad.addColorStop(0, '#0a0a1a'); grad.addColorStop(0.5, '#141432'); grad.addColorStop(1, '#0a0a1a');
+        pctx.fillStyle = grad; pctx.fillRect(0,0,750,1334);
+        for(var i=0;i<50;i++) {
+          pctx.beginPath(); pctx.arc(Math.random()*750, Math.random()*1334, Math.random()*2+0.5, 0, Math.PI*2);
+          pctx.fillStyle = 'rgba(255,255,255,' + (Math.random()*0.5+0.2) + ')'; pctx.fill();
+        }
+        pctx.font = 'bold 36px Inter, system-ui, sans-serif';
+        pctx.fillStyle = '#fff'; pctx.textAlign = 'center';
+        pctx.fillText('Birthday Galaxy', 375, 400);
+        pctx.font = 'bold 48px Inter, system-ui, sans-serif';
+        pctx.fillText(data.name + ' \u7684 ' + data.age + ' \u5C81\u751F\u65E5', 375, 500);
+        pctx.font = '24px Inter, system-ui, sans-serif';
+        pctx.fillStyle = 'rgba(255,255,255,0.7)';
+        pctx.fillText(poemLine, 375, 580);
+        var link = document.createElement('a');
+        link.download = data.name + '-birthday.png';
+        link.href = pc.toDataURL('image/png');
+        link.click();
+      });
+
+      document.getElementById('btn-copy').addEventListener('click', function() {
+        navigator.clipboard.writeText(window.location.href).then(function(){
+          var btn = document.getElementById('btn-copy');
+          btn.textContent = '\u2705 \u5DF2\u590D\u5236';
+          setTimeout(function(){ btn.textContent = '\uD83D\uDD17 \u590D\u5236\u94FE\u63A5'; }, 2000);
+        });
+      });
+
+      document.getElementById('btn-wechat').addEventListener('click', function() {
+        alert('\u8BF7\u622A\u56FE\u5206\u4EAB\u5230\u5FAE\u4FE1 \uD83D\uDCAC');
+      });
+
+      document.getElementById('btn-restart').addEventListener('click', function() {
+        window.location.reload();
+      });
+
+      // Message sending
+      document.getElementById('msg-send').addEventListener('click', function() {
+        var input = document.getElementById('msg-input');
+        var text = input.value.trim();
+        if(!text) return;
+        messages.push(text);
+        input.value = '';
+        var list = document.getElementById('messages-list');
+        list.innerHTML += '<div class="fade-in" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.9rem;opacity:0.8;">' + text + '</div>';
+        list.scrollTop = list.scrollHeight;
+      });
+    }
+  </script>
+</body>
+</html>
